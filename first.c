@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+
+
 typedef struct {
     int score;
     int max_items;
@@ -10,6 +12,8 @@ typedef struct {
     char email[70];
     char password[50];
     char security_word[200];
+    char difficulty[20];
+    char hero_color[10];
 } Gamer;
 
 void menu(Gamer *g);
@@ -32,11 +36,14 @@ int main() {
     curs_set(0);
     keypad(stdscr, TRUE);
     start_color();
+    can_change_color();
     init_pair(1, COLOR_RED, COLOR_BLACK);
     menu(&g);
     clear();
     draw_border();
     game_menu(&g);
+    const char *filename="scores.txt";
+    char game_all_scores[100][1000];
     endwin();
     return 0;
 }
@@ -44,23 +51,22 @@ int main() {
 void menu(Gamer *g) {
     char *menu[] = {"sign in", "login", "login as guest"};
     int choice = 0;
-    int num_choices = sizeof(menu) / sizeof(char*);
     
     while (1) {
         clear();
         draw_border();
-        for (int i = 0; i < num_choices; ++i) {
+        for (int i = 0; i < 3; ++i) {
             if (i == choice)
                 attron(A_REVERSE);
-            mvprintw((LINES - num_choices) / 2 + i, (COLS - strlen(menu[i])) / 2, "%s", menu[i]);
+            mvprintw((LINES - 3) / 2 + i, (COLS - strlen(menu[i])) / 2, "%s", menu[i]);
             if (i == choice)
                 attroff(A_REVERSE);
         }
         int ch = getch();
         if (ch == KEY_UP)
-            choice = (choice == 0) ? num_choices - 1 : choice - 1;
+            choice = (choice == 0) ? 3 - 1 : choice - 1;
         else if (ch == KEY_DOWN)
-            choice = (choice == num_choices - 1) ? 0 : choice + 1;
+            choice = (choice == 3 - 1) ? 0 : choice + 1;
         else if (ch == 10){
     
     if (choice == 0) {
@@ -81,6 +87,7 @@ void menu(Gamer *g) {
 }
 
 void draw_border() {
+    start_color();
     for (int x = 0; x < COLS; x += 2) {
         mvprintw(0, x, "-");
         mvprintw(LINES - 1, x, "-");
@@ -373,6 +380,7 @@ void game_menu(Gamer *g) {
             choice = (choice == 0) ? num_choices - 1 : choice - 1;
         else if (ch == KEY_DOWN)
             choice = (choice == num_choices - 1) ? 0 : choice + 1;
+            else if (ch == 10){
             if (choice == 0) {
                // new_game(g);
                 break;
@@ -382,12 +390,200 @@ void game_menu(Gamer *g) {
                 break;
             }
             else if (choice == 2) {
-              //  score_table(g);
+               sort_scores(g);
             }
             else if (choice == 3) {
-               // settings(g);
+               setting(g);
             }
     }
+    }
+    
     refresh();
     return;
+}
+
+void new_game()
+{
+
+}
+
+void continue_game()
+{
+
+}
+
+void score_table()
+{
+
+}
+
+void setting(Gamer *g) {
+    char *string[] = {"Difficulty", "Hero setting","Back"};
+    int choice = 0;
+    int ch;
+
+    while (1) {
+        clear();
+        draw_border();
+        for (int i = 0; i < 3; i++) {
+            if (i == choice) {
+                attron(A_REVERSE ); 
+            }
+            mvprintw((LINES - 3) / 2 + i, (COLS - strlen(string[i])) / 2, "%s", string[i]);
+            if (i == choice) {
+                attroff(A_REVERSE); 
+            }
+        }
+        refresh();
+
+        ch = getch();
+        if (ch == KEY_UP) {
+            choice = (choice == 0) ? 2 : choice - 1;
+        } else if (ch == KEY_DOWN) {
+            choice = (choice == 2) ? 0 : choice + 1;
+        } else if (ch == 10) { // کد ASCII برای Enter
+            if (choice == 0) {
+                difficulty(g);
+            } else if (choice == 1) {
+                hero_setting(g);
+            }
+            else if (choice == 2) {
+                return ;
+            }
+        }
+    }
+}
+
+
+void difficulty(Gamer *g) {
+    char *string[] = {"EASY", "MEDIUM", "HARD"};
+    int choice = 0;
+    int ch;
+
+    while (1) {
+        clear();
+        draw_border();
+        for (int i = 0; i < 3; i++) {
+            if (i == choice) {
+                attron(A_REVERSE); 
+            }
+            mvprintw((LINES - 3) / 2 + i, (COLS - strlen(string[i])) / 2, "%s", string[i]);
+            if (i == choice) {
+                attroff(A_REVERSE ); 
+            }
+        }
+        refresh();
+
+        ch = getch();
+        if (ch == KEY_UP) {
+            choice = (choice == 0) ? 2 : choice - 1;
+        } else if (ch == KEY_DOWN) {
+            choice = (choice == 2) ? 0 : choice + 1;
+        } else if (ch == 10) { // کد ASCII برای Enter
+            if (choice == 0) {
+                strcpy(g->difficulty , "EASY");
+            } else if (choice == 1) {
+               strcpy( g->difficulty ,"MEDIUM");
+            } else if (choice == 2) {
+                strcpy(g->difficulty , "HARD");
+            }
+            break;
+        }
+    }
+}
+
+void hero_setting(Gamer *g){
+    
+char *hero_color[]={"RED", "BLUE", "GREEN"};
+int choice = 0;
+    int ch;
+
+    while (1) {
+        clear();
+        draw_border();
+        for (int i = 0; i < 3; i++) {
+            if (i == choice) {
+                attron(A_REVERSE); 
+            }
+            mvprintw((LINES - 3) / 2 + i, (COLS - strlen(hero_color[i])) / 2, "%s", hero_color[i]);
+            if (i == choice) {
+                attroff(A_REVERSE ); 
+            }
+        }
+        refresh();
+
+        ch = getch();
+        if (ch == KEY_UP) {
+            choice = (choice == 0) ? 2 : choice - 1;
+        } else if (ch == KEY_DOWN) {
+            choice = (choice == 2) ? 0 : choice + 1;
+        } else if (ch == 10) { // کد ASCII برای Enter
+            if (choice == 0) {
+                strcpy(g->hero_color , "RED");
+            } else if (choice == 1) {
+               strcpy( g->hero_color ,"BLUE");
+            } else if (choice == 2) {
+                strcpy(g->hero_color , "GREEN");
+            }
+            break;
+        }
+    }
+
+    /* void scores_save(g)
+    {
+    FILE * file= fopen (scores, "a");
+    if(file==NULL){
+        file = fopen(scores, "w");
+    }
+    fprintf(file, "%s : %d\n",g->name, g->score);
+    fclose(file);
+    } */
+
+  void sort_scores(const char *filename) {
+    char game_all_scores[100][1000];
+    int i = 0;
+
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Error opening file!\n");
+        return;
+    }
+
+    while (fgets(game_all_scores[i], 1000, file) != NULL) {
+        game_all_scores[i][strcspn(game_all_scores[i], "\n")] = '\0';
+        i++;
+    }
+    fclose(file);
+
+    for (int j = 0; j < i - 1; j++) { 
+            
+        for (int h = j + 1; h < i; h++) {
+           char name1[1000];
+            int score1;
+            sscanf(game_all_scores[j], "%[^:] : %d", name1, &score1);
+
+            char name2[1000];
+            int score2;
+            sscanf(game_all_scores[h], "%[^:] : %d", name2, &score2);
+
+            if (score2 > score1) {
+                char temp[1000];
+                strcpy(temp, game_all_scores[j]);
+                strcpy(game_all_scores[j], game_all_scores[h]);
+                strcpy(game_all_scores[h], temp);
+            }
+        }
+    }
+
+    // چاپ نتایج
+    printf("Sorted Scores:\n");
+    for (int k = 0; k < i; k++) {
+        printf("%s\n", game_all_scores[k]);
+    }
+}
+
+    void score_table()
+    {
+
+    }
 }
