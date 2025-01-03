@@ -3,8 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-
-
 typedef struct {
     int score;
     int max_items;
