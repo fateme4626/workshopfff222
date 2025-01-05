@@ -3,7 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <locale.h>
 
 typedef struct {
     int score;
@@ -16,6 +19,12 @@ typedef struct {
     char hero_color[10];
 } Gamer;
 
+typedef struct {
+char name[80];
+int score;
+int gold;
+} player;
+
 void menu(Gamer *g);
 void draw_border();
 int sign_in(Gamer *g);
@@ -24,7 +33,10 @@ int validation_email(char *eamil);
 int login(Gamer *g);
 void login_as_guest(Gamer*g);
 char * random_pass();
-void game_menu(Gamer *g);
+void game_menu(Gamer *g, const char* filename);
+void sort_scores(const char *filename, Gamer*g);
+void show_scores(player * scores, int i, Gamer* g);
+
 
 
 
@@ -35,14 +47,16 @@ int main() {
     cbreak();
     curs_set(0);
     keypad(stdscr, TRUE);
+    setlocale(LC_ALL, "");
     start_color();
     can_change_color();
     init_pair(1, COLOR_RED, COLOR_BLACK);
     menu(&g);
     clear();
     draw_border();
-    game_menu(&g);
-    const char *filename="scores.txt";
+    const char *filename="scores.txt";    
+    game_menu(&g, filename) ;
+
     char game_all_scores[100][1000];
     endwin();
     return 0;
@@ -169,7 +183,7 @@ int sign_in(Gamer *g) {
 
     mkdir (new_user , 0777);//new folder with name of user
 
-    char user_info[100];
+    char user_info[200];
     sprintf(user_info, "./%s/%s.info.txt", g->name , g->name);
     FILE* info= fopen(user_info, "w");
     fprintf(info, "name : %s\n",g->name);
@@ -257,7 +271,7 @@ int login(Gamer *g) {
     
     char password[100];
     strcpy(password, g->password);
-    char user_info[100];
+    char user_info[200];
     sprintf(user_info, "./%s/%s.info.txt", g->name, g->name);
 
     FILE *file = fopen(user_info, "r");
@@ -355,7 +369,7 @@ pass[11]='\0';
 return pass;
 }
 
-void game_menu(Gamer *g) {
+void game_menu(Gamer *g, const char* filename) {
     char *choices[] = {
         "New Game",
         "Continue Previous Game",
@@ -390,7 +404,7 @@ void game_menu(Gamer *g) {
                 break;
             }
             else if (choice == 2) {
-               sort_scores(g);
+                sort_scores(filename,g);
             }
             else if (choice == 3) {
                setting(g);
@@ -527,7 +541,7 @@ int choice = 0;
             }
             break;
         }
-    }
+    }}
 
     /* void scores_save(g)
     {
@@ -539,51 +553,58 @@ int choice = 0;
     fclose(file);
     } */
 
-  void sort_scores(const char *filename) {
-    char game_all_scores[100][1000];
+void sort_scores(const char *filename, Gamer *g) {
+    player scores[100];
     int i = 0;
 
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        printf("Error opening file!\n");
+        fprintf(stderr, "Error opening file!\n");
         return;
     }
 
-    while (fgets(game_all_scores[i], 1000, file) != NULL) {
-        game_all_scores[i][strcspn(game_all_scores[i], "\n")] = '\0';
+    while (fscanf(file, "%[^:]:%d:%d", scores[i].name, &scores[i].score, &scores[i].gold) != EOF) {
         i++;
     }
     fclose(file);
 
     for (int j = 0; j < i - 1; j++) { 
-            
         for (int h = j + 1; h < i; h++) {
-           char name1[1000];
-            int score1;
-            sscanf(game_all_scores[j], "%[^:] : %d", name1, &score1);
-
-            char name2[1000];
-            int score2;
-            sscanf(game_all_scores[h], "%[^:] : %d", name2, &score2);
-
-            if (score2 > score1) {
-                char temp[1000];
-                strcpy(temp, game_all_scores[j]);
-                strcpy(game_all_scores[j], game_all_scores[h]);
-                strcpy(game_all_scores[h], temp);
+            if (scores[h].score > scores[j].score) {
+                player temp = scores[j];
+                scores[j] = scores[h];
+                scores[h] = temp;
             }
         }
     }
 
-    // چاپ نتایج
-    printf("Sorted Scores:\n");
-    for (int k = 0; k < i; k++) {
-        printf("%s\n", game_all_scores[k]);
-    }
+    show_scores(scores, i, g);
 }
 
-    void score_table()
-    {
+void show_scores(player *scores, int count, Gamer *g) {
+    clear();
+    draw_border();
 
+    if (count == 0) {
+        mvprintw((LINES - 2) / 2, (COLS - 2) / 2, "No score to display");
+    } else {
+        mvprintw(3, (COLS - 2) / 2, "💰");
+
+      //  for (int y = 0; y < count; y++) {
+            int line = (LINES - count) / 2 + 1;
+          //  if (y == 0) {
+mvprintw(line, (COLS - strlen("Legend")) / 2 - 2, "\xF0\x9F\x8F\x86 Legend");
+           // }
+/*
+            mvprintw(line, (COLS - strlen(scores[y].name)) / 2, "%s", scores[y].name);
+            mvprintw(line, (COLS - 2) / 2, "%d", scores[y].gold);
+            mvprintw(line, (COLS - 2) * 4 / 5, "%d", scores[y].score); */
+       // }
     }
+
+    refresh();
+    getch();
 }
+
+
+    
