@@ -7,8 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <locale.h>
-#define min_number_of_rooms 4
-#define max_number_of_room 8
+#define min_number_of_rooms 5
+#define max_number_of_room 9
 #define min_size_of_h_w 8
 
 
@@ -34,8 +34,9 @@ int gold;
 typedef struct {
     int width;
     int height;
-    int x;
-    int y;
+    int first_x;
+    int first_y;
+    int number_of_door;
 }room;
 
 void menu(Gamer *g);
@@ -626,74 +627,65 @@ mvprintw(line, (COLS - strlen("Legend")) / 2 - 2, "\xF0\x9F\x8F\x86 Legend");
     refresh();
     getch();
 }
+
 int check_rooms(int rooms, room* new_rooms, room new_room) {
     for (int k = 0; k < rooms; k++) {
-        if (new_rooms[k].x < new_room.x + new_room.width &&
-            new_rooms[k].x + new_rooms[k].width > new_room.x &&
-            new_rooms[k].y < new_room.y + new_room.height &&
-            new_rooms[k].y + new_rooms[k].height > new_room.y) {
-            return 0;
+        if (new_rooms[k].first_x < new_room.first_x + new_room.width &&
+            new_rooms[k].first_x + new_rooms[k].width > new_room.first_x &&
+            new_rooms[k].first_y < new_room.first_y + new_room.height &&
+            new_rooms[k].first_y + new_rooms[k].height > new_room.first_y) {
+            return false;
         }
     }
-    return 1;
+    return true;
 }
 
 void draw_map() {
     clear();
     srand(time(NULL));
-
-    int COLS = getmaxx(stdscr); // تعداد ستون‌ها
-    int LINES = getmaxy(stdscr); // تعداد سطرها
-
-    // تخصیص و مقداردهی اولیه map
-    int** map = (int**)calloc(COLS, sizeof(int*));
+    int** map = (int**)calloc(COLS , sizeof(int*));
     for (int i = 0; i < COLS; i++) {
-        map[i] = (int*)calloc(LINES, sizeof(int));
+        map[i] = (int*)calloc(LINES , sizeof(int));
     }
+    int number_of_rooms = rand() % (max_number_of_room-min_number_of_rooms) + min_number_of_rooms;
+    int max_size = ((COLS-7) / (number_of_rooms * 8)) < ((LINES-7) / (number_of_rooms * 8)) ? ((COLS-7) / (number_of_rooms * 8)) : ((LINES-7) / (number_of_rooms * 8));
+    room* new_rooms = (room*)malloc(number_of_rooms * sizeof(room));
+    int rooms = -1;
 
-   
-
-    int number_rooms = rand() % (max_number_of_room - min_number_of_rooms) + min_number_of_rooms;
-    int max_size = ((COLS-5) / (number_rooms * 8)) < ((LINES-5) / (number_rooms * 8)) ? ((COLS-5) / (number_rooms * 8)) : ((LINES-5) / (number_rooms * 8));
-    room* new_rooms = (room*)malloc(number_rooms * sizeof(room));
-    int rooms = 0;
-
-    for (int i = 0; i < number_rooms; i++) {
-        int width = rand() % (COLS - 5 - min_size_of_h_w) + min_size_of_h_w;
-        int height = rand() % (LINES - 5 - min_size_of_h_w) + min_size_of_h_w;
-
+    for (int i = 0; i < number_of_rooms; i++) {
+        int width = rand() % (max_size - min_size_of_h_w) + min_size_of_h_w;
+        int height = rand() % (max_size - min_size_of_h_w) + min_size_of_h_w;
         room new_room;
         new_room.width = width;
         new_room.height = height;
-
         do {
-            new_room.x = rand() % (COLS - 5 - width);
-            new_room.y = rand() % (LINES - 5 - height);
+            new_room.first_x = rand() % (COLS -7- width);
+            new_room.first_y = rand() % (LINES -7- height);
         } while (!check_rooms(rooms, new_rooms, new_room));
-
+        new_room.number_of_door=0;
         new_rooms[rooms++] = new_room;
 
-        for (int w = 1; w < width-1; w++) {
+          for (int w = 1; w < width-1; w++) {
             for (int h = 1; h < height-1; h++) {
-                map[new_room.x + w][new_room.y + h] = 1;
+                map[new_room.first_x + w][new_room.first_y + h] = 1;
             }
         }
-
-        for (int p = 1; p < height-1; p++) {
-            map[new_room.x][new_room.y + p] = 2;
-            map[width - 1 + new_room.x][new_room.y + p] = 2;
+         for (int p = 1; p < height-1; p++) {
+            map[new_room.first_x][new_room.first_y + p] = 2;
+            map[width - 1 + new_room.first_x][new_room.first_y + p] = 2;
         }
         for (int p = 1; p < width-1; p++) {
-            map[new_room.x + p][new_room.y] = 3;
-            map[p + new_room.x][new_room.y + height - 1] = 3;
+            map[new_room.first_x + p][new_room.first_y] = 3;
+            map[p + new_room.first_x][new_room.first_y + height - 1] = 3;
         }
-        map[new_room.x][new_room.y + height - 1] = 4;
-        map[new_room.x][new_room.y] = 4;
-        map[new_room.x + width - 1][new_room.y] = 4;
-        map[new_room.x + width - 1][new_room.y + height - 1] = 4;
+        map[new_room.first_x][new_room.first_y + height - 1] = 4;
+        map[new_room.first_x][new_room.first_y] = 4;
+        map[new_room.first_x + width - 1][new_room.first_y] = 4;
+        map[new_room.first_x + width - 1][new_room.first_y + height - 1] = 4;
+    
     }
 
-    // نمایش نقشه
+   
     for (int j = 0; j < LINES; j++) {
         for (int i = 0; i < COLS; i++) {
             if (map[i][j] == 1) {
@@ -707,13 +699,23 @@ void draw_map() {
             }
         }
     }
+    
 
     refresh();
     getch();
+}
 
-    // آزادسازی حافظه
-    for (int i = 0; i < COLS; i++) {
-        free(map[i]);
-    }
-    free(map);
+void draw_hallway(room *new_rooms, int ** map, int rooms){
+    srand(time(NULL));
+
+for(int i=0;i<rooms; i++){
+int num= rand() % (rooms);
+if(num!=i && new_rooms->number_of_door<4){
+    
+}
+
+
+
+
+}
 }
