@@ -7,6 +7,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <locale.h>
+#define min_number_of_rooms 4
+#define max_number_of_room 8
+#define min_size_of_h_w 8
+
+
+
 
 typedef struct {
     int score;
@@ -25,6 +31,13 @@ int score;
 int gold;
 } player;
 
+typedef struct {
+    int width;
+    int height;
+    int x;
+    int y;
+}room;
+
 void menu(Gamer *g);
 void draw_border();
 int sign_in(Gamer *g);
@@ -36,6 +49,10 @@ char * random_pass();
 void game_menu(Gamer *g, const char* filename);
 void sort_scores(const char *filename, Gamer*g);
 void show_scores(player * scores, int i, Gamer* g);
+void draw_map();
+int check_rooms(int rooms, room* new_rooms, room new);
+void draw_map();
+void new_game(Gamer*g);
 
 
 
@@ -396,7 +413,7 @@ void game_menu(Gamer *g, const char* filename) {
             choice = (choice == num_choices - 1) ? 0 : choice + 1;
             else if (ch == 10){
             if (choice == 0) {
-               // new_game(g);
+                new_game(g);
                 break;
             } 
             else if (choice == 1) {
@@ -416,9 +433,13 @@ void game_menu(Gamer *g, const char* filename) {
     return;
 }
 
-void new_game()
+void new_game(Gamer*g)
 {
-
+    clear();
+draw_border();
+draw_map();
+refresh();
+getch();
 }
 
 void continue_game()
@@ -605,6 +626,94 @@ mvprintw(line, (COLS - strlen("Legend")) / 2 - 2, "\xF0\x9F\x8F\x86 Legend");
     refresh();
     getch();
 }
+int check_rooms(int rooms, room* new_rooms, room new_room) {
+    for (int k = 0; k < rooms; k++) {
+        if (new_rooms[k].x < new_room.x + new_room.width &&
+            new_rooms[k].x + new_rooms[k].width > new_room.x &&
+            new_rooms[k].y < new_room.y + new_room.height &&
+            new_rooms[k].y + new_rooms[k].height > new_room.y) {
+            return 0;
+        }
+    }
+    return 1;
+}
 
+void draw_map() {
+    clear();
+    srand(time(NULL));
 
-    
+    int COLS = getmaxx(stdscr); // تعداد ستون‌ها
+    int LINES = getmaxy(stdscr); // تعداد سطرها
+
+    // تخصیص و مقداردهی اولیه map
+    int** map = (int**)calloc(COLS, sizeof(int*));
+    for (int i = 0; i < COLS; i++) {
+        map[i] = (int*)calloc(LINES, sizeof(int));
+    }
+
+   
+
+    int number_rooms = rand() % (max_number_of_room - min_number_of_rooms) + min_number_of_rooms;
+    int max_size = ((COLS-5) / (number_rooms * 8)) < ((LINES-5) / (number_rooms * 8)) ? ((COLS-5) / (number_rooms * 8)) : ((LINES-5) / (number_rooms * 8));
+    room* new_rooms = (room*)malloc(number_rooms * sizeof(room));
+    int rooms = 0;
+
+    for (int i = 0; i < number_rooms; i++) {
+        int width = rand() % (COLS - 5 - min_size_of_h_w) + min_size_of_h_w;
+        int height = rand() % (LINES - 5 - min_size_of_h_w) + min_size_of_h_w;
+
+        room new_room;
+        new_room.width = width;
+        new_room.height = height;
+
+        do {
+            new_room.x = rand() % (COLS - 5 - width);
+            new_room.y = rand() % (LINES - 5 - height);
+        } while (!check_rooms(rooms, new_rooms, new_room));
+
+        new_rooms[rooms++] = new_room;
+
+        for (int w = 1; w < width-1; w++) {
+            for (int h = 1; h < height-1; h++) {
+                map[new_room.x + w][new_room.y + h] = 1;
+            }
+        }
+
+        for (int p = 1; p < height-1; p++) {
+            map[new_room.x][new_room.y + p] = 2;
+            map[width - 1 + new_room.x][new_room.y + p] = 2;
+        }
+        for (int p = 1; p < width-1; p++) {
+            map[new_room.x + p][new_room.y] = 3;
+            map[p + new_room.x][new_room.y + height - 1] = 3;
+        }
+        map[new_room.x][new_room.y + height - 1] = 4;
+        map[new_room.x][new_room.y] = 4;
+        map[new_room.x + width - 1][new_room.y] = 4;
+        map[new_room.x + width - 1][new_room.y + height - 1] = 4;
+    }
+
+    // نمایش نقشه
+    for (int j = 0; j < LINES; j++) {
+        for (int i = 0; i < COLS; i++) {
+            if (map[i][j] == 1) {
+                mvprintw(j, i, ".");
+            } else if (map[i][j] == 2) {
+                mvprintw(j, i, "|");
+            } else if (map[i][j] == 3) {
+                mvprintw(j, i, "-");
+            } else if (map[i][j] == 4) {
+                mvprintw(j, i, "#");
+            }
+        }
+    }
+
+    refresh();
+    getch();
+
+    // آزادسازی حافظه
+    for (int i = 0; i < COLS; i++) {
+        free(map[i]);
+    }
+    free(map);
+}
