@@ -11,10 +11,8 @@
 #define max_number_of_room 9
 #define min_size_of_h_w 8
 
-
-
-
-typedef struct {
+typedef struct
+{
     int score;
     int max_items;
     char name[50];
@@ -25,19 +23,27 @@ typedef struct {
     char hero_color[10];
 } Gamer;
 
-typedef struct {
-char name[80];
-int score;
-int gold;
+typedef struct
+{
+    char name[80];
+    int score;
+    int gold;
 } player;
 
-typedef struct {
+typedef struct
+{
     int width;
     int height;
     int first_x;
     int first_y;
     int number_of_door;
-}room;
+} room;
+
+typedef struct
+{
+    int row;
+    int col;
+} pair;
 
 void menu(Gamer *g);
 void draw_border();
@@ -45,20 +51,24 @@ int sign_in(Gamer *g);
 int validation_password(char *password);
 int validation_email(char *eamil);
 int login(Gamer *g);
-void login_as_guest(Gamer*g);
-char * random_pass();
-void game_menu(Gamer *g, const char* filename);
-void sort_scores(const char *filename, Gamer*g);
-void show_scores(player * scores, int i, Gamer* g);
+void login_as_guest(Gamer *g);
+char *random_pass();
+void game_menu(Gamer *g, const char *filename);
+void sort_scores(const char *filename, Gamer *g);
+void show_scores(player *scores, int i, Gamer *g);
 void draw_map();
-int check_rooms(int rooms, room* new_rooms, room new);
+int check_rooms(int rooms, room *new_rooms, room new);
 void draw_map();
-void new_game(Gamer*g);
+void new_game(Gamer *g);
+int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish);
+void initialize(char ***mark, pair ***parent);
+void draw_path(pair start, pair current, pair **parent, char **map);
+void draw_hallway(room *new_rooms, char **map, int rooms);
+int draw_hallway_point(int i, int num, room *new_rooms, char **map);
+void setting(Gamer*g);
 
-
-
-
-int main() {
+int main()
+{
     Gamer g;
     initscr();
     clear();
@@ -72,22 +82,25 @@ int main() {
     menu(&g);
     clear();
     draw_border();
-    const char *filename="scores.txt";    
-    game_menu(&g, filename) ;
+    const char *filename = "scores.txt";
+    game_menu(&g, filename);
 
     char game_all_scores[100][1000];
     endwin();
     return 0;
 }
 
-void menu(Gamer *g) {
+void menu(Gamer *g)
+{
     char *menu[] = {"sign in", "login", "login as guest"};
     int choice = 0;
-    
-    while (1) {
+
+    while (1)
+    {
         clear();
         draw_border();
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 3; ++i)
+        {
             if (i == choice)
                 attron(A_REVERSE);
             mvprintw((LINES - 3) / 2 + i, (COLS - strlen(menu[i])) / 2, "%s", menu[i]);
@@ -99,181 +112,202 @@ void menu(Gamer *g) {
             choice = (choice == 0) ? 3 - 1 : choice - 1;
         else if (ch == KEY_DOWN)
             choice = (choice == 3 - 1) ? 0 : choice + 1;
-        else if (ch == 10){
-    
-    if (choice == 0) {
-       if( sign_in(g))
-       break;
-    } else if (choice == 1) {
-     if(login(g))
-     break;
-    }
-    else if (choice == 2) {
-     login_as_guest(g);
-     break;
-    }
-    }
+        else if (ch == 10)
+        {
+
+            if (choice == 0)
+            {
+                if (sign_in(g))
+                    break;
+            }
+            else if (choice == 1)
+            {
+                if (login(g))
+                    break;
+            }
+            else if (choice == 2)
+            {
+                login_as_guest(g);
+                break;
+            }
+        }
     }
     refresh();
-    return ;
+    return;
 }
 
-void draw_border() {
+void draw_border()
+{
     start_color();
-    for (int x = 0; x < COLS; x += 2) {
-        mvprintw(0, x, "-");
-        mvprintw(LINES - 1, x, "-");
+    for (int x = 0; x < COLS; x += 2)
+    {
+        mvprintw(0, x, '-');
+        mvprintw(LINES - 1, x, '-');
     }
-    for (int x = 1; x < COLS; x += 2) {
+    for (int x = 1; x < COLS; x += 2)
+    {
         mvprintw(0, x, "*");
         mvprintw(LINES - 1, x, "*");
     }
-    for (int y = 0; y < LINES; y += 2) {
+    for (int y = 0; y < LINES; y += 2)
+    {
         mvprintw(y, 0, "^");
         mvprintw(y, COLS - 1, "^");
     }
-    for (int y = 1; y < LINES; y += 2) {
+    for (int y = 1; y < LINES; y += 2)
+    {
         mvprintw(y, 0, "*");
         mvprintw(y, COLS - 1, "*");
     }
 }
 
-int sign_in(Gamer *g) {
+int sign_in(Gamer *g)
+{
     clear();
     draw_border();
-     mvprintw((LINES - 2) / 2 , (COLS - strlen("Enter your name :")) / 2, "Enter your name : ");
+    mvprintw((LINES - 2) / 2, (COLS - strlen("Enter your name :")) / 2, "Enter your name : ");
     getnstr(g->name, 50);
-    
+
     char new_user[52];
     sprintf(new_user, "./%s", g->name);
-    if(access(new_user, F_OK)==0){
-    attron(COLOR_PAIR(1));
-    mvprintw((LINES-2)/2 + 4, (COLS-2-strlen("!! USERNAMME IS ALREADY TAKEN !!"))/2, "!! USERNAMME IS ALREADY TAKEN !!");
-    attroff(COLOR_PAIR(1));
-    refresh();
-    getch();
-    return 0;
+    if (access(new_user, F_OK) == 0)
+    {
+        attron(COLOR_PAIR(1));
+        mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! USERNAMME IS ALREADY TAKEN !!")) / 2, "!! USERNAMME IS ALREADY TAKEN !!");
+        attroff(COLOR_PAIR(1));
+        refresh();
+        getch();
+        return 0;
     }
-   
 
     clear();
     draw_border();
-    mvprintw((LINES - 2) / 2, (COLS - strlen("welcome !")-30) / 2 + 4, "welcom %s !",g->name);
+    mvprintw((LINES - 2) / 2, (COLS - strlen("welcome !") - 30) / 2 + 4, "welcom %s !", g->name);
     mvprintw((LINES - 2) / 2 + 3, (COLS - strlen("Enter your email :")) / 2, "Enter your email : ");
-    getnstr(g->email,70);
+    getnstr(g->email, 70);
     char email[100];
     strcpy(email, g->email);
 
-    if(!validation_email(email)){
-    attron(COLOR_PAIR(1));
-    mvprintw((LINES-2)/2 + 4, (COLS-2-strlen("!! INVALID EMAL ADDRESS !!"))/2, "!! INVALID EMAIL ADDRESS !!");
-    attroff(COLOR_PAIR(1));
-    refresh();
-    getch();
-    return 0;
+    if (!validation_email(email))
+    {
+        attron(COLOR_PAIR(1));
+        mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! INVALID EMAL ADDRESS !!")) / 2, "!! INVALID EMAIL ADDRESS !!");
+        attroff(COLOR_PAIR(1));
+        refresh();
+        getch();
+        return 0;
     }
-    
-     clear();
+
+    clear();
     draw_border();
     mvprintw((LINES - 2) / 2 + 1, (COLS - strlen("Enter your password if you need random password write ::rand :")) / 2, "Enter your password if you need random password write ::rand : ");
     getnstr(g->password, 50);
-    if (strcmp(g->password, "::rand") == 0) {
-       strcpy(g->password, random_pass());
+    if (strcmp(g->password, "::rand") == 0)
+    {
+        strcpy(g->password, random_pass());
     }
 
     char password[100];
     strcpy(password, g->password);
 
-    if(!validation_password(password))
+    if (!validation_password(password))
     {
-    attron(COLOR_PAIR(1));
-    mvprintw((LINES-2)/2 + 4, (COLS-2-strlen("!! INVALID PASSWORD !!"))/2, "!! INVALID PASSWORD !!");
-    attroff(COLOR_PAIR(1));
-    refresh();
-    return 0;
+        attron(COLOR_PAIR(1));
+        mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! INVALID PASSWORD !!")) / 2, "!! INVALID PASSWORD !!");
+        attroff(COLOR_PAIR(1));
+        refresh();
+        return 0;
     }
-    clear ();
+    clear();
     draw_border();
-    mvprintw( ((LINES-2)/2), (COLS-2-strlen("please write your highschool name you can use it instead of password "))/2, "please write your highschool name you can use it instead of password ");
+    mvprintw(((LINES - 2) / 2), (COLS - 2 - strlen("please write your highschool name you can use it instead of password ")) / 2, "please write your highschool name you can use it instead of password ");
     getnstr(g->security_word, 100);
-   
 
-
-    mkdir (new_user , 0777);//new folder with name of user
+    mkdir(new_user, 0777); // new folder with name of user
 
     char user_info[200];
-    sprintf(user_info, "./%s/%s.info.txt", g->name , g->name);
-    FILE* info= fopen(user_info, "w");
-    fprintf(info, "name : %s\n",g->name);
-    fprintf(info, "email : %s\n",g->email);
+    sprintf(user_info, "./%s/%s.info.txt", g->name, g->name);
+    FILE *info = fopen(user_info, "w");
+    fprintf(info, "name : %s\n", g->name);
+    fprintf(info, "email : %s\n", g->email);
     fprintf(info, "password : %s\n", g->password);
-    fprintf(info, "security_word : %s\n", g->security_word );
+    fprintf(info, "security_word : %s\n", g->security_word);
     fclose(info);
     refresh();
-   return 1;
+    return 1;
 }
 
 int validation_email(char *email)
 {
-int length = strlen(email);
-int sign=0;
-int sign_num;
-int signdot=0;
-for(int i=0; i< strlen(email); i++){
-    if ( email[i] == '@' && i>0){
-     sign=1;
-     sign_num=i;
+    int length = strlen(email);
+    int sign = 0;
+    int sign_num;
+    int signdot = 0;
+    for (int i = 0; i < strlen(email); i++)
+    {
+        if (email[i] == '@' && i > 0)
+        {
+            sign = 1;
+            sign_num = i;
+        }
+        if (email[i] == '.' && i > sign_num + 1 && sign_num > 0 && i < length - 1)
+        {
+            signdot = 1;
+        }
     }
-    if( email[i]=='.' && i>sign_num+1 && sign_num>0 && i<length-1){
-        signdot=1;
+    if (sign && signdot)
+    {
+        return 1;
     }
-}
-if(sign && signdot){
-    return 1;
+
+    return 0;
 }
 
-return 0;
-}
-
-int validation_password(char * password){
-    int length = strlen (password);
-    if(length<7){
+int validation_password(char *password)
+{
+    int length = strlen(password);
+    if (length < 7)
+    {
         return 0;
     }
-        int digit=0;
-        int upercase=0;
-        int small=0;
-    for(int i=0 ;i <length;i++){
-            char c=password[i];
+    int digit = 0;
+    int upercase = 0;
+    int small = 0;
+    for (int i = 0; i < length; i++)
+    {
+        char c = password[i];
 
-    if (c>='1' && c<= '9')
+        if (c >= '1' && c <= '9')
+        {
+            digit = 1;
+        }
+        if (c >= 'a' && c <= 'z')
+        {
+            small = 1;
+        }
+        if (c >= 'A' && c <= 'Z')
+        {
+            upercase = 1;
+        }
+    }
+    if (digit && upercase && small)
     {
-        digit=1;
-    }
-    if (c>='a' && c<= 'z')
-    {
-        small=1;
-    }
-    if (c>='A' && c<= 'Z')
-    {
-        upercase=1;
-    }
-    }
-    if(digit && upercase && small){
         return 1;
     }
     return 0;
 }
 
-int login(Gamer *g) {
+int login(Gamer *g)
+{
     clear();
     draw_border();
     mvprintw((LINES - 2) / 2, (COLS - strlen("Enter your name :")) / 2, "Enter your name : ");
     getnstr(g->name, 50);
-    
+
     char new_user[52];
     sprintf(new_user, "./%s", g->name);
-    if (access(new_user, F_OK) != 0) {
+    if (access(new_user, F_OK) != 0)
+    {
         attron(COLOR_PAIR(1));
         mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! username not found !!")) / 2, "!! username not found !!");
         attroff(COLOR_PAIR(1));
@@ -281,12 +315,12 @@ int login(Gamer *g) {
         getch();
         return 0;
     }
-    
+
     clear();
     draw_border();
     mvprintw((LINES - 2) / 2 + 1, (COLS - strlen("Enter your password  if you forgot it write ::forgot:")) / 2, "Enter your password  if you forgot it write ::forgot: ");
     getnstr(g->password, 50);
-    
+
     char password[100];
     strcpy(password, g->password);
     char user_info[200];
@@ -294,57 +328,67 @@ int login(Gamer *g) {
 
     FILE *file = fopen(user_info, "r");
 
-    if(strcmp(g->password, "::forgot")==0){
+    if (strcmp(g->password, "::forgot") == 0)
+    {
         clear();
         draw_border();
-    mvprintw((LINES - 2) / 2 , (COLS - strlen("write your highschool name : ")) / 2, "write your highschool name : ");
-    char school[100],school_name[100];
-    getnstr(school_name, 100);
-    char temp[100];
-    while (fgets(temp, 100, file)) {
-        if (strstr(temp, "security_word : ") != NULL) {
-            sscanf(temp, "security_word : %s", school);
-            break;
+        mvprintw((LINES - 2) / 2, (COLS - strlen("write your highschool name : ")) / 2, "write your highschool name : ");
+        char school[100], school_name[100];
+        getnstr(school_name, 100);
+        char temp[100];
+        while (fgets(temp, 100, file))
+        {
+            if (strstr(temp, "security_word : ") != NULL)
+            {
+                sscanf(temp, "security_word : %s", school);
+                break;
+            }
         }
-    } fclose (file);
-    if (strcmp(school, school_name) == 0) {
-        return 1;
-    } else {
-        attron(COLOR_PAIR(1));
-        mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! it's wrong !!")) / 2, "!! it's wrong !!");
-        attroff(COLOR_PAIR(1));
-        return 0;
-    }
-
-}
-   
-
-else{
-    char temp[200];
-    char user_password[100];
-    while (fgets(temp, 200, file)) {
-        if (strstr(temp, "password : ") != NULL) {
-            sscanf(temp, "password : %s", user_password);
-            break;
+        fclose(file);
+        if (strcmp(school, school_name) == 0)
+        {
+            return 1;
+        }
+        else
+        {
+            attron(COLOR_PAIR(1));
+            mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! it's wrong !!")) / 2, "!! it's wrong !!");
+            attroff(COLOR_PAIR(1));
+            return 0;
         }
     }
-    fclose(file);
-    
 
-    
-    if (strcmp(password, user_password) == 0) {
-        return 1;
-    } else {
-        attron(COLOR_PAIR(1));
-        mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! password is incorrect !!")) / 2, "!! password is incorrect !!");
-        attroff(COLOR_PAIR(1)); refresh();
-    getch();
-        return 0;
+    else
+    {
+        char temp[200];
+        char user_password[100];
+        while (fgets(temp, 200, file))
+        {
+            if (strstr(temp, "password : ") != NULL)
+            {
+                sscanf(temp, "password : %s", user_password);
+                break;
+            }
+        }
+        fclose(file);
+
+        if (strcmp(password, user_password) == 0)
+        {
+            return 1;
+        }
+        else
+        {
+            attron(COLOR_PAIR(1));
+            mvprintw((LINES - 2) / 2 + 4, (COLS - 2 - strlen("!! password is incorrect !!")) / 2, "!! password is incorrect !!");
+            attroff(COLOR_PAIR(1));
+            refresh();
+            getch();
+            return 0;
+        }
     }
-   
 }
-}
-void login_as_guest(Gamer*g){
+void login_as_guest(Gamer *g)
+{
     clear();
     draw_border();
     mvprintw((LINES - 2) / 2 + 1, (COLS - strlen("Enter your name :")) / 2, "Enter your name : ");
@@ -354,53 +398,59 @@ void login_as_guest(Gamer*g){
     mvprintw((LINES - 2) / 2 + 1, (COLS - strlen("press a key to start")) / 2, "press a key to start");
     getch();
 }
-char* random_pass(){
-static char pass[12];
-srand(time(NULL)); //yeksan nabashand
-char number[2];
-char uper[5];
-char small[5];
-for(int i=0;i<2;i++){
-int n = rand();
- number[i]= (n%10)+'0'; //random digit}
-}
-for(int i=0;i<5;i++){
-int up= rand();
-uper[i]= (up%26)+'A'; 
-}
-for(int i=0;i<4;i++){
-int sma= rand();
-small[i]= (sma%26)+'a'; 
-}
-pass[0]=number[1];
-pass[1]=uper[0];
-pass[2]=uper[1];
-pass[3]=small[0];
-pass[4]=number[0];
-pass[5]=uper[2];
-pass[6]=uper[3];
-pass[7]=small[1];
-pass[8]=small[2];
-pass[9]=small[3];
-pass[10]=uper[4];
-pass[11]='\0';
-return pass;
+char *random_pass()
+{
+    static char pass[12];
+    srand(time(NULL)); // yeksan nabashand
+    char number[2];
+    char uper[5];
+    char small[5];
+    for (int i = 0; i < 2; i++)
+    {
+        int n = rand();
+        number[i] = (n % 10) + '0'; // random digit}
+    }
+    for (int i = 0; i < 5; i++)
+    {
+        int up = rand();
+        uper[i] = (up % 26) + 'A';
+    }
+    for (int i = 0; i < 4; i++)
+    {
+        int sma = rand();
+        small[i] = (sma % 26) + 'a';
+    }
+    pass[0] = number[1];
+    pass[1] = uper[0];
+    pass[2] = uper[1];
+    pass[3] = small[0];
+    pass[4] = number[0];
+    pass[5] = uper[2];
+    pass[6] = uper[3];
+    pass[7] = small[1];
+    pass[8] = small[2];
+    pass[9] = small[3];
+    pass[10] = uper[4];
+    pass[11] = '\0';
+    return pass;
 }
 
-void game_menu(Gamer *g, const char* filename) {
+void game_menu(Gamer *g, const char *filename)
+{
     char *choices[] = {
         "New Game",
         "Continue Previous Game",
         "Score Table",
-        "Setting"
-    };
+        "Setting"};
     int choice = 0;
     int num_choices = 4;
 
-    while (1) {
+    while (1)
+    {
         clear();
         draw_border();
-        for (int i = 0; i < num_choices; ++i) {
+        for (int i = 0; i < num_choices; ++i)
+        {
             if (i == choice)
                 attron(A_REVERSE);
             mvprintw((LINES - num_choices) / 2 + i, (COLS - strlen(choices[i])) / 2, "%s", choices[i]);
@@ -412,187 +462,240 @@ void game_menu(Gamer *g, const char* filename) {
             choice = (choice == 0) ? num_choices - 1 : choice - 1;
         else if (ch == KEY_DOWN)
             choice = (choice == num_choices - 1) ? 0 : choice + 1;
-            else if (ch == 10){
-            if (choice == 0) {
-                new_game(g);
-                break;
-            } 
-            else if (choice == 1) {
-               // continue_game(g);
+        else if (ch == 10)
+        {
+            if (choice == 0)
+            {
+               // new_game(g);
                 break;
             }
-            else if (choice == 2) {
-                sort_scores(filename,g);
+            else if (choice == 1)
+            {
+                // continue_game(g);
+                break;
             }
-            else if (choice == 3) {
-               setting(g);
+            else if (choice == 2)
+            {
+                sort_scores(filename, g);
             }
+            else if (choice == 3)
+            {
+                setting(g);
+            }
+        }
     }
-    }
-    
+
     refresh();
     return;
 }
 
-void new_game(Gamer*g)
+void new_game(Gamer *g)
 {
     clear();
-draw_border();
-draw_map();
-refresh();
-getch();
+    draw_border();
+    draw_map();
+    refresh();
+    getch();
 }
 
 void continue_game()
 {
-
 }
 
 void score_table()
 {
-
 }
 
-void setting(Gamer *g) {
-    char *string[] = {"Difficulty", "Hero setting","Back"};
+void setting(Gamer *g)
+{
+    char *string[] = {"Difficulty", "Hero setting", "Back"};
     int choice = 0;
     int ch;
 
-    while (1) {
+    while (1)
+    {
         clear();
         draw_border();
-        for (int i = 0; i < 3; i++) {
-            if (i == choice) {
-                attron(A_REVERSE ); 
+        for (int i = 0; i < 3; i++)
+        {
+            if (i == choice)
+            {
+                attron(A_REVERSE);
             }
             mvprintw((LINES - 3) / 2 + i, (COLS - strlen(string[i])) / 2, "%s", string[i]);
-            if (i == choice) {
-                attroff(A_REVERSE); 
+            if (i == choice)
+            {
+                attroff(A_REVERSE);
             }
         }
         refresh();
 
         ch = getch();
-        if (ch == KEY_UP) {
+        if (ch == KEY_UP)
+        {
             choice = (choice == 0) ? 2 : choice - 1;
-        } else if (ch == KEY_DOWN) {
+        }
+        else if (ch == KEY_DOWN)
+        {
             choice = (choice == 2) ? 0 : choice + 1;
-        } else if (ch == 10) { // کد ASCII برای Enter
-            if (choice == 0) {
+        }
+        else if (ch == 10)
+        { // کد ASCII برای Enter
+            if (choice == 0)
+            {
                 difficulty(g);
-            } else if (choice == 1) {
+            }
+            else if (choice == 1)
+            {
                 hero_setting(g);
             }
-            else if (choice == 2) {
-                return ;
+            else if (choice == 2)
+            {
+                return;
             }
         }
     }
 }
 
-
-void difficulty(Gamer *g) {
+void difficulty(Gamer *g)
+{
     char *string[] = {"EASY", "MEDIUM", "HARD"};
     int choice = 0;
     int ch;
 
-    while (1) {
+    while (1)
+    {
         clear();
         draw_border();
-        for (int i = 0; i < 3; i++) {
-            if (i == choice) {
-                attron(A_REVERSE); 
+        for (int i = 0; i < 3; i++)
+        {
+            if (i == choice)
+            {
+                attron(A_REVERSE);
             }
             mvprintw((LINES - 3) / 2 + i, (COLS - strlen(string[i])) / 2, "%s", string[i]);
-            if (i == choice) {
-                attroff(A_REVERSE ); 
+            if (i == choice)
+            {
+                attroff(A_REVERSE);
             }
         }
         refresh();
 
         ch = getch();
-        if (ch == KEY_UP) {
+        if (ch == KEY_UP)
+        {
             choice = (choice == 0) ? 2 : choice - 1;
-        } else if (ch == KEY_DOWN) {
+        }
+        else if (ch == KEY_DOWN)
+        {
             choice = (choice == 2) ? 0 : choice + 1;
-        } else if (ch == 10) { // کد ASCII برای Enter
-            if (choice == 0) {
-                strcpy(g->difficulty , "EASY");
-            } else if (choice == 1) {
-               strcpy( g->difficulty ,"MEDIUM");
-            } else if (choice == 2) {
-                strcpy(g->difficulty , "HARD");
+        }
+        else if (ch == 10)
+        { // کد ASCII برای Enter
+            if (choice == 0)
+            {
+                strcpy(g->difficulty, "EASY");
+            }
+            else if (choice == 1)
+            {
+                strcpy(g->difficulty, "MEDIUM");
+            }
+            else if (choice == 2)
+            {
+                strcpy(g->difficulty, "HARD");
             }
             break;
         }
     }
 }
 
-void hero_setting(Gamer *g){
-    
-char *hero_color[]={"RED", "BLUE", "GREEN"};
-int choice = 0;
+void hero_setting(Gamer *g)
+{
+
+    char *hero_color[] = {"RED", "BLUE", "GREEN"};
+    int choice = 0;
     int ch;
 
-    while (1) {
+    while (1)
+    {
         clear();
         draw_border();
-        for (int i = 0; i < 3; i++) {
-            if (i == choice) {
-                attron(A_REVERSE); 
+        for (int i = 0; i < 3; i++)
+        {
+            if (i == choice)
+            {
+                attron(A_REVERSE);
             }
             mvprintw((LINES - 3) / 2 + i, (COLS - strlen(hero_color[i])) / 2, "%s", hero_color[i]);
-            if (i == choice) {
-                attroff(A_REVERSE ); 
+            if (i == choice)
+            {
+                attroff(A_REVERSE);
             }
         }
         refresh();
 
         ch = getch();
-        if (ch == KEY_UP) {
+        if (ch == KEY_UP)
+        {
             choice = (choice == 0) ? 2 : choice - 1;
-        } else if (ch == KEY_DOWN) {
+        }
+        else if (ch == KEY_DOWN)
+        {
             choice = (choice == 2) ? 0 : choice + 1;
-        } else if (ch == 10) { // کد ASCII برای Enter
-            if (choice == 0) {
-                strcpy(g->hero_color , "RED");
-            } else if (choice == 1) {
-               strcpy( g->hero_color ,"BLUE");
-            } else if (choice == 2) {
-                strcpy(g->hero_color , "GREEN");
+        }
+        else if (ch == 10)
+        { // کد ASCII برای Enter
+            if (choice == 0)
+            {
+                strcpy(g->hero_color, "RED");
+            }
+            else if (choice == 1)
+            {
+                strcpy(g->hero_color, "BLUE");
+            }
+            else if (choice == 2)
+            {
+                strcpy(g->hero_color, "GREEN");
             }
             break;
         }
-    }}
-
-    /* void scores_save(g)
-    {
-    FILE * file= fopen (scores, "a");
-    if(file==NULL){
-        file = fopen(scores, "w");
     }
-    fprintf(file, "%s : %d\n",g->name, g->score);
-    fclose(file);
-    } */
+}
 
-void sort_scores(const char *filename, Gamer *g) {
+/* void scores_save(g)
+{
+FILE * file= fopen (scores, "a");
+if(file==NULL){
+    file = fopen(scores, "w");
+}
+fprintf(file, "%s : %d\n",g->name, g->score);
+fclose(file);
+} */
+
+void sort_scores(const char *filename, Gamer *g)
+{
     player scores[100];
     int i = 0;
 
     FILE *file = fopen(filename, "r");
-    if (file == NULL) {
+    if (file == NULL)
+    {
         fprintf(stderr, "Error opening file!\n");
         return;
     }
 
-    while (fscanf(file, "%[^:]:%d:%d", scores[i].name, &scores[i].score, &scores[i].gold) != EOF) {
+    while (fscanf(file, "%[^:]:%d:%d", scores[i].name, &scores[i].score, &scores[i].gold) != EOF)
+    {
         i++;
     }
     fclose(file);
 
-    for (int j = 0; j < i - 1; j++) { 
-        for (int h = j + 1; h < i; h++) {
-            if (scores[h].score > scores[j].score) {
+    for (int j = 0; j < i - 1; j++)
+    {
+        for (int h = j + 1; h < i; h++)
+        {
+            if (scores[h].score > scores[j].score)
+            {
                 player temp = scores[j];
                 scores[j] = scores[h];
                 scores[h] = temp;
@@ -603,119 +706,219 @@ void sort_scores(const char *filename, Gamer *g) {
     show_scores(scores, i, g);
 }
 
-void show_scores(player *scores, int count, Gamer *g) {
+void show_scores(player *scores, int count, Gamer *g)
+{
     clear();
     draw_border();
 
-    if (count == 0) {
+    if (count == 0)
+    {
         mvprintw((LINES - 2) / 2, (COLS - 2) / 2, "No score to display");
-    } else {
+    }
+    else
+    {
         mvprintw(3, (COLS - 2) / 2, "💰");
 
-      //  for (int y = 0; y < count; y++) {
-            int line = (LINES - count) / 2 + 1;
-          //  if (y == 0) {
-mvprintw(line, (COLS - strlen("Legend")) / 2 - 2, "\xF0\x9F\x8F\x86 Legend");
-           // }
-/*
-            mvprintw(line, (COLS - strlen(scores[y].name)) / 2, "%s", scores[y].name);
-            mvprintw(line, (COLS - 2) / 2, "%d", scores[y].gold);
-            mvprintw(line, (COLS - 2) * 4 / 5, "%d", scores[y].score); */
-       // }
+        //  for (int y = 0; y < count; y++) {
+        int line = (LINES - count) / 2 + 1;
+        //  if (y == 0) {
+        mvprintw(line, (COLS - strlen("Legend")) / 2 - 2, "\xF0\x9F\x8F\x86 Legend");
+        // }
+        /*
+                    mvprintw(line, (COLS - strlen(scores[y].name)) / 2, "%s", scores[y].name);
+                    mvprintw(line, (COLS - 2) / 2, "%d", scores[y].gold);
+                    mvprintw(line, (COLS - 2) * 4 / 5, "%d", scores[y].score); */
+        // }
     }
 
     refresh();
     getch();
 }
 
-int check_rooms(int rooms, room* new_rooms, room new_room) {
-    for (int k = 0; k < rooms; k++) {
+int check_rooms(int rooms, room *new_rooms, room new_room)
+{
+    for (int k = 0; k < rooms; k++)
+    {
         if (new_rooms[k].first_x < new_room.first_x + new_room.width &&
             new_rooms[k].first_x + new_rooms[k].width > new_room.first_x &&
             new_rooms[k].first_y < new_room.first_y + new_room.height &&
-            new_rooms[k].first_y + new_rooms[k].height > new_room.first_y) {
+            new_rooms[k].first_y + new_rooms[k].height > new_room.first_y)
+        {
             return false;
         }
     }
     return true;
 }
 
-void draw_map() {
+void draw_map()
+{
     clear();
     srand(time(NULL));
-    int** map = (int**)calloc(COLS , sizeof(int*));
-    for (int i = 0; i < COLS; i++) {
-        map[i] = (int*)calloc(LINES , sizeof(int));
+    char **map = (char **)malloc(COLS * sizeof(char *));
+    for (int i = 0; i < COLS; i++)
+    {
+        map[i] = (char *)malloc(LINES * sizeof(char));
     }
-    int number_of_rooms = rand() % (max_number_of_room-min_number_of_rooms) + min_number_of_rooms;
-    int max_size = ((COLS-7) / (number_of_rooms * 8)) < ((LINES-7) / (number_of_rooms * 8)) ? ((COLS-7) / (number_of_rooms * 8)) : ((LINES-7) / (number_of_rooms * 8));
-    room* new_rooms = (room*)malloc(number_of_rooms * sizeof(room));
+    for (int i = 0; i < COLS; i++)
+    {
+        for (int j = 0; j < LINES; j++)
+        {
+            map[i][j] = '&'; //& mesns it's empty
+        }
+    }
+
+    int number_of_rooms = rand() % (max_number_of_room - min_number_of_rooms) + min_number_of_rooms;
+    int max_size = ((COLS - 7) / (number_of_rooms * 8)) < ((LINES - 7) / (number_of_rooms * 8)) ? ((COLS - 7) / (number_of_rooms * 8)) : ((LINES - 7) / (number_of_rooms * 8));
+    room *new_rooms = (room *)malloc(number_of_rooms * sizeof(room));
     int rooms = -1;
 
-    for (int i = 0; i < number_of_rooms; i++) {
+    for (int i = 0; i < number_of_rooms; i++)
+    {
         int width = rand() % (max_size - min_size_of_h_w) + min_size_of_h_w;
         int height = rand() % (max_size - min_size_of_h_w) + min_size_of_h_w;
         room new_room;
         new_room.width = width;
         new_room.height = height;
-        do {
-            new_room.first_x = rand() % (COLS -7- width);
-            new_room.first_y = rand() % (LINES -7- height);
+        do
+        {
+            new_room.first_x = rand() % (COLS - 7 - width);
+            new_room.first_y = rand() % (LINES - 7 - height);
         } while (!check_rooms(rooms, new_rooms, new_room));
-        new_room.number_of_door=0;
+        new_room.number_of_door = 0;
         new_rooms[rooms++] = new_room;
 
-          for (int w = 1; w < width-1; w++) {
-            for (int h = 1; h < height-1; h++) {
-                map[new_room.first_x + w][new_room.first_y + h] = 1;
+        for (int w = 1; w < width - 1; w++)
+        {
+            for (int h = 1; h < height - 1; h++)
+            {
+                map[new_room.first_x + w][new_room.first_y + h] = '.';
             }
         }
-         for (int p = 1; p < height-1; p++) {
-            map[new_room.first_x][new_room.first_y + p] = 2;
-            map[width - 1 + new_room.first_x][new_room.first_y + p] = 2;
+        for (int p = 1; p < height - 1; p++)
+        {
+            map[new_room.first_x][new_room.first_y + p] = '|';
+            map[width - 1 + new_room.first_x][new_room.first_y + p] = '|';
         }
-        for (int p = 1; p < width-1; p++) {
-            map[new_room.first_x + p][new_room.first_y] = 3;
-            map[p + new_room.first_x][new_room.first_y + height - 1] = 3;
+        for (int p = 1; p < width - 1; p++)
+        {
+            map[new_room.first_x + p][new_room.first_y] = '-';
+            map[p + new_room.first_x][new_room.first_y + height - 1] = '-';
         }
-        map[new_room.first_x][new_room.first_y + height - 1] = 4;
-        map[new_room.first_x][new_room.first_y] = 4;
-        map[new_room.first_x + width - 1][new_room.first_y] = 4;
-        map[new_room.first_x + width - 1][new_room.first_y + height - 1] = 4;
-    
+        map[new_room.first_x][new_room.first_y + height - 1] = '#';
+        map[new_room.first_x][new_room.first_y] = '#';
+        map[new_room.first_x + width - 1][new_room.first_y] = '#';
+        map[new_room.first_x + width - 1][new_room.first_y + height - 1] = '#';
     }
 
-   
-    for (int j = 0; j < LINES; j++) {
-        for (int i = 0; i < COLS; i++) {
-            if (map[i][j] == 1) {
-                mvprintw(j, i, ".");
-            } else if (map[i][j] == 2) {
-                mvprintw(j, i, "|");
-            } else if (map[i][j] == 3) {
-                mvprintw(j, i, "-");
-            } else if (map[i][j] == 4) {
-                mvprintw(j, i, "#");
+    draw_hallway(new_rooms, map, rooms);
+
+    for (int j = 0; j < LINES; j++)
+    {
+        for (int i = 0; i < COLS; i++)
+        {
+            if (map[i][j] != '&')
+            {
+                mvprintw(j, i,map[i][j] );
             }
+         
+            
         }
     }
-    
 
     refresh();
     getch();
 }
 
-void draw_hallway(room *new_rooms, int ** map, int rooms){
+void draw_hallway(room *new_rooms, char **map, int rooms)
+{
     srand(time(NULL));
-
-for(int i=0;i<rooms; i++){
-int num= rand() % (rooms);
-if(num!=i && new_rooms->number_of_door<4){
+    int num;
+    for (int i = 0; i < rooms; i++)
+    {
+        if (new_rooms[i].number_of_door == 0)
+        {
+            do
+            {
+                num = rand() % rooms;
+            } while (!draw_hallway_point(i, num, new_rooms, map));
+        }
+    }
     
-}
-
-
-
 
 }
+
+int draw_hallway_point(int i, int num, room *new_rooms, char **map)
+{
+
+    char **mark = (char **)malloc(COLS * sizeof(char));
+    for (int j = 0; j < COLS; j++)
+    {
+        mark[j] = (char *)malloc(LINES * sizeof(char));
+    }
+
+    pair **parent = (pair **)malloc(COLS * sizeof(pair *));
+    for (int j = 0; j < COLS; j++)
+    {
+        parent[j] = (pair *)malloc(LINES * sizeof(pair));
+    }
+
+    for (int i = 0; i < COLS; i++)
+    {
+        for (int j = 0; j < LINES; j++)
+        {
+            mark[i][j] = 'n';
+        }
+    }
+
+    pair start = {new_rooms[i].first_x + new_rooms[i].width / 2, new_rooms[i].first_y + new_rooms[i].width / 2};
+    pair finish = {new_rooms[num].first_x + new_rooms[num].height / 2, new_rooms[num].first_y + new_rooms[num].height / 2};
+
+   if( dfs_visit(map, mark, start.row, start.col, parent, finish)){
+    draw_path(start, finish, parent, map);
+    return 1;
+   }
+return 0;
+
+}
+
+int dfs_visit(char **map,
+              char **mark,
+              int x,
+              int y,
+              pair **parent, pair finish)
+{
+    mark[x][y] = 'v';
+    if (x == finish.row && y == finish.col)
+    {
+        return 1;
+    }
+    int deltax[] = {-1, 0, 0, +1};
+    int deltay[] = {0, +1, -1, 0};
+    for (int i = 0; i < 4; i++)
+    {
+        int nx = x + deltax[i];
+        int ny = y + deltay[i];
+        if (map[nx][ny] == '&' && mark[nx, ny] == 'n')
+        {
+            parent[nx][ny].row = x;
+            parent[nx][ny].col=y;
+            if (dfs_visit(map, mark, nx, ny, parent, finish))
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+void draw_path(pair start,
+               pair current,
+               pair **parent,
+               char **map)
+{
+    map[current.row][current.col] = '*';
+    if (current.row != start.row || current.col!=start.col)
+    {
+        draw_path(start, parent[current.row][current.col], parent, map);
+    }
 }
