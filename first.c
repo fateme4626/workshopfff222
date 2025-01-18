@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <locale.h>
 #define min_number_of_rooms 5
-#define max_number_of_room 9
+#define max_number_of_room 10
 #define min_size_of_h_w 8
 
 typedef struct
@@ -58,14 +58,16 @@ void sort_scores(const char *filename, Gamer *g);
 void show_scores(player *scores, int i, Gamer *g);
 void draw_map();
 int check_rooms(int rooms, room *new_rooms, room new);
-void draw_map();
+ void draw_map();
 void new_game(Gamer *g);
 int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish);
 void initialize(char ***mark, pair ***parent);
 void draw_path(pair start, pair current, pair **parent, char **map);
 void draw_hallway(room *new_rooms, char **map, int rooms);
-int draw_hallway_point(int i, int num, room *new_rooms, char **map);
+int draw_hallway_point(int i, int num, room *new_rooms, char **map); 
 void setting(Gamer*g);
+void difficulty(Gamer*g);
+void hero_setting(Gamer*g);
 
 int main()
 {
@@ -141,8 +143,8 @@ void draw_border()
     start_color();
     for (int x = 0; x < COLS; x += 2)
     {
-        mvprintw(0, x, '-');
-        mvprintw(LINES - 1, x, '-');
+        mvprintw(0, x, "-");
+        mvprintw(LINES - 1, x, "-");
     }
     for (int x = 1; x < COLS; x += 2)
     {
@@ -466,7 +468,7 @@ void game_menu(Gamer *g, const char *filename)
         {
             if (choice == 0)
             {
-               // new_game(g);
+                new_game(g);
                 break;
             }
             else if (choice == 1)
@@ -737,23 +739,32 @@ void show_scores(player *scores, int count, Gamer *g)
 
 int check_rooms(int rooms, room *new_rooms, room new_room)
 {
-    for (int k = 0; k < rooms; k++)
+    for (int k = 0; k <= rooms; k++)
     {
-        if (new_rooms[k].first_x < new_room.first_x + new_room.width &&
-            new_rooms[k].first_x + new_rooms[k].width > new_room.first_x &&
+        if ((new_rooms[k].first_x < new_room.first_x + new_room.width &&
+            new_rooms[k].first_x + new_rooms[k].width+5 > new_room.first_x &&
             new_rooms[k].first_y < new_room.first_y + new_room.height &&
-            new_rooms[k].first_y + new_rooms[k].height > new_room.first_y)
+            new_rooms[k].first_y + new_rooms[k].height+5 > new_room.first_y) || 
+            (
+            new_rooms[k].first_x < new_room.first_x + new_room.width+5 &&
+            new_rooms[k].first_x + new_rooms[k].width > new_room.first_x &&
+            new_rooms[k].first_y < new_room.first_y + new_room.height+5 &&
+            new_rooms[k].first_y + new_rooms[k].height > new_room.first_y))
+            
         {
-            return false;
+            return 0;
         }
     }
-    return true;
+    return 1;
 }
+
 
 void draw_map()
 {
     clear();
     srand(time(NULL));
+    int COLS=getmaxx(stdscr);
+    int LINES=getmaxy(stdscr);
     char **map = (char **)malloc(COLS * sizeof(char *));
     for (int i = 0; i < COLS; i++)
     {
@@ -761,16 +772,19 @@ void draw_map()
     }
     for (int i = 0; i < COLS; i++)
     {
-        for (int j = 0; j < LINES; j++)
+        for (int j = 0; j < LINES-1; j++)
         {
-            map[i][j] = '&'; //& mesns it's empty
+            map[i][j] = '&'; //& means it's empty
         }
+    }
+    for(int i=0; i<COLS; i++){
+        map[i][LINES-1]='\0';
     }
 
     int number_of_rooms = rand() % (max_number_of_room - min_number_of_rooms) + min_number_of_rooms;
-    int max_size = ((COLS - 7) / (number_of_rooms * 8)) < ((LINES - 7) / (number_of_rooms * 8)) ? ((COLS - 7) / (number_of_rooms * 8)) : ((LINES - 7) / (number_of_rooms * 8));
+    int max_size = ((COLS - 5) / (number_of_rooms * 8)) < ((LINES - 5) / (number_of_rooms * 8)) ? ((COLS - 5) / (number_of_rooms * 8)) : ((LINES - 7) / (number_of_rooms * 8));
     room *new_rooms = (room *)malloc(number_of_rooms * sizeof(room));
-    int rooms = -1;
+    int rooms = 0;
 
     for (int i = 0; i < number_of_rooms; i++)
     {
@@ -781,11 +795,11 @@ void draw_map()
         new_room.height = height;
         do
         {
-            new_room.first_x = rand() % (COLS - 7 - width);
-            new_room.first_y = rand() % (LINES - 7 - height);
+            new_room.first_x = rand() % (COLS - 4 - width);
+            new_room.first_y = rand() % (LINES - 4 - height);
         } while (!check_rooms(rooms, new_rooms, new_room));
-        new_room.number_of_door = 0;
-        new_rooms[rooms++] = new_room;
+        new_room.number_of_door = 0; 
+        new_rooms[rooms++] = new_room; 
 
         for (int w = 1; w < width - 1; w++)
         {
@@ -818,7 +832,7 @@ void draw_map()
         {
             if (map[i][j] != '&')
             {
-                mvprintw(j, i,map[i][j] );
+                mvprintw(j, i,"%c",map[i][j] );
             }
          
             
@@ -828,97 +842,85 @@ void draw_map()
     refresh();
     getch();
 }
-
-void draw_hallway(room *new_rooms, char **map, int rooms)
-{
+void draw_hallway(room *new_rooms, char **map, int rooms) {
+    int COLS=getmaxx(stdscr);
+    int LINES=getmaxy(stdscr);
     srand(time(NULL));
     int num;
-    for (int i = 0; i < rooms; i++)
-    {
-        if (new_rooms[i].number_of_door == 0)
-        {
-            do
-            {
+    for (int i = 0; i < rooms; i++) {
+        if (new_rooms[i].number_of_door == 0) {
+            do {
                 num = rand() % rooms;
-            } while (!draw_hallway_point(i, num, new_rooms, map));
+            } while (num == i || !draw_hallway_point(i, num, new_rooms, map));
         }
     }
-    
-
 }
 
-int draw_hallway_point(int i, int num, room *new_rooms, char **map)
-{
-
-    char **mark = (char **)malloc(COLS * sizeof(char));
-    for (int j = 0; j < COLS; j++)
-    {
+int draw_hallway_point(int i, int num, room *new_rooms, char **map) {
+   char**mark = (char **)malloc(COLS * sizeof(char *));
+    for (int j = 0; j < COLS; j++) {
         mark[j] = (char *)malloc(LINES * sizeof(char));
     }
 
-    pair **parent = (pair **)malloc(COLS * sizeof(pair *));
-    for (int j = 0; j < COLS; j++)
-    {
+    pair **parent = (pair** )malloc(COLS * sizeof(pair *));
+    for (int j = 0; j < COLS; j++) {
         parent[j] = (pair *)malloc(LINES * sizeof(pair));
     }
 
-    for (int i = 0; i < COLS; i++)
-    {
-        for (int j = 0; j < LINES; j++)
-        {
-            mark[i][j] = 'n';
+    for (int k = 0; k < COLS; k++) {
+        for (int l = 0; l < LINES; l++) {
+            mark[k][l] = 'n';
         }
     }
 
-    pair start = {new_rooms[i].first_x + new_rooms[i].width / 2, new_rooms[i].first_y + new_rooms[i].width / 2};
-    pair finish = {new_rooms[num].first_x + new_rooms[num].height / 2, new_rooms[num].first_y + new_rooms[num].height / 2};
+    pair start = {new_rooms[i].first_x + new_rooms[i].width / 2, new_rooms[i].first_y + new_rooms[i].height / 2};
+    pair finish = {new_rooms[num].first_x + new_rooms[num].width / 2, new_rooms[num].first_y + new_rooms[num].height / 2};
 
-   if( dfs_visit(map, mark, start.row, start.col, parent, finish)){
-    draw_path(start, finish, parent, map);
-    return 1;
-   }
-return 0;
-
+    if (dfs_visit(map, mark, start.row, start.col, parent, finish)) {
+        draw_path(start, finish, parent, map);
+        for (int k = 0; k < COLS; k++) {
+            free(mark[k]);
+            free(parent[k]);
+        }
+        free(mark);
+        free(parent);
+        return 1;
+    }
+    for (int k = 0; k < COLS; k++) {
+        free(mark[k]);
+        free(parent[k]);
+    }
+    free(mark);
+    free(parent);
+    return 0;
 }
 
-int dfs_visit(char **map,
-              char **mark,
-              int x,
-              int y,
-              pair **parent, pair finish)
-{
+int dfs_visit(char** map,char**mark, int x, int y, pair **parent, pair finish) {
     mark[x][y] = 'v';
-    if (x == finish.row && y == finish.col)
-    {
+    if (x == finish.row && y == finish.col) {
         return 1;
     }
     int deltax[] = {-1, 0, 0, +1};
     int deltay[] = {0, +1, -1, 0};
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         int nx = x + deltax[i];
         int ny = y + deltay[i];
-        if (map[nx][ny] == '&' && mark[nx, ny] == 'n')
-        {
-            parent[nx][ny].row = x;
-            parent[nx][ny].col=y;
-            if (dfs_visit(map, mark, nx, ny, parent, finish))
-            {
-                return 1;
+        if (nx >= 2 && nx < COLS && ny >= 2 && ny < LINES) { 
+            if (map[nx][ny] == '&' && mark[nx][ny] == 'n') {
+                parent[nx][ny].row = x;
+                parent[nx][ny].col = y;
+                if (dfs_visit(map, mark, nx, ny, parent, finish)) {
+                    return 1;
+                }
             }
         }
     }
     return 0;
 }
 
-void draw_path(pair start,
-               pair current,
-               pair **parent,
-               char **map)
-{
+void draw_path(pair start, pair current, pair **parent, char** map) {
     map[current.row][current.col] = '*';
-    if (current.row != start.row || current.col!=start.col)
-    {
+    if (current.row != start.row || current.col != start.col) {
         draw_path(start, parent[current.row][current.col], parent, map);
     }
 }
