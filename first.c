@@ -37,12 +37,14 @@ typedef struct
     int first_x;
     int first_y;
     int number_of_door;
+    pair entrance;
+    pair exit;
 } room;
 
 typedef struct
 {
-    int row;
-    int col;
+    double row;
+    double col;
 } pair;
 
 void menu(Gamer *g);
@@ -60,7 +62,7 @@ void draw_map();
 int check_rooms(int rooms, room *new_rooms, room new);
  void draw_map();
 void new_game(Gamer *g);
-int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish);
+int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish, int , int);
 void initialize(char ***mark, pair ***parent);
 void draw_path(pair start, pair current, pair **parent, char **map);
 void draw_hallway(room *new_rooms, char **map, int rooms);
@@ -824,7 +826,7 @@ void draw_map()
         map[new_room.first_x + width - 1][new_room.first_y + height - 1] = '#';
     }
 
-    draw_hallway(new_rooms, map, rooms);
+   // draw_hallway(new_rooms, map, rooms);
 
     for (int j = 0; j < LINES; j++)
     {
@@ -842,85 +844,165 @@ void draw_map()
     refresh();
     getch();
 }
-void draw_hallway(room *new_rooms, char **map, int rooms) {
-    int COLS=getmaxx(stdscr);
-    int LINES=getmaxy(stdscr);
-    srand(time(NULL));
-    int num;
-    for (int i = 0; i < rooms; i++) {
-        if (new_rooms[i].number_of_door == 0) {
-            do {
-                num = rand() % rooms;
-            } while (num == i || !draw_hallway_point(i, num, new_rooms, map));
-        }
-    }
+
+typedef struct {
+    double row;
+    double col;
+} pair;
+
+typedef struct {
+    pair a1;
+    pair a2;
+    pair a3;
+    pair center_of_surround_circle;
+} triangle;
+typedef struct {
+    pair first;
+    pair second;
+    double tool;
+}edge;
+
+
+// محاسبه مرکز دایره محیطی
+void calculate_center_of_circle(triangle* mosalas) {
+    double determinant = 2 * (mosalas->a1.row * (mosalas->a2.col - mosalas->a3.col) + mosalas->a2.row * (mosalas->a3.col - mosalas->a1.col) + mosalas->a3.row * (mosalas->a1.col - mosalas->a2.col));
+    mosalas->center_of_surround_circle.row = (1 / determinant) * ((pow(mosalas->a1.row, 2) + pow(mosalas->a1.col, 2)) * (mosalas->a2.col - mosalas->a3.col) + (pow(mosalas->a2.row, 2) + pow(mosalas->a2.col, 2)) * (mosalas->a1.col - mosalas->a3.col) + (pow(mosalas->a3.row, 2) + pow(mosalas->a3.col, 2)) * (mosalas->a1.col - mosalas->a2.col));
+    mosalas->center_of_surround_circle.col = (1 / determinant) * ((pow(mosalas->a1.row, 2) + pow(mosalas->a1.col, 2)) * (mosalas->a2.row - mosalas->a3.row) + (pow(mosalas->a2.row, 2) + pow(mosalas->a2.col, 2)) * (mosalas->a1.row - mosalas->a3.row) + (pow(mosalas->a3.row, 2) + pow(mosalas->a3.col, 2)) * (mosalas->a1.row - mosalas->a2.row));
 }
 
-int draw_hallway_point(int i, int num, room *new_rooms, char **map) {
-   char**mark = (char **)malloc(COLS * sizeof(char *));
-    for (int j = 0; j < COLS; j++) {
-        mark[j] = (char *)malloc(LINES * sizeof(char));
-    }
-
-    pair **parent = (pair** )malloc(COLS * sizeof(pair *));
-    for (int j = 0; j < COLS; j++) {
-        parent[j] = (pair *)malloc(LINES * sizeof(pair));
-    }
-
-    for (int k = 0; k < COLS; k++) {
-        for (int l = 0; l < LINES; l++) {
-            mark[k][l] = 'n';
-        }
-    }
-
-    pair start = {new_rooms[i].first_x + new_rooms[i].width / 2, new_rooms[i].first_y + new_rooms[i].height / 2};
-    pair finish = {new_rooms[num].first_x + new_rooms[num].width / 2, new_rooms[num].first_y + new_rooms[num].height / 2};
-
-    if (dfs_visit(map, mark, start.row, start.col, parent, finish)) {
-        draw_path(start, finish, parent, map);
-        for (int k = 0; k < COLS; k++) {
-            free(mark[k]);
-            free(parent[k]);
-        }
-        free(mark);
-        free(parent);
-        return 1;
-    }
-    for (int k = 0; k < COLS; k++) {
-        free(mark[k]);
-        free(parent[k]);
-    }
-    free(mark);
-    free(parent);
-    return 0;
+// بررسی داخل یا خارج بودن نقطه در دایره محیطی
+int is_inside_of_circle(pair k, triangle h, double radius) {
+    // محاسبه فاصله
+    double distance = sqrt(pow(k.row - h.center_of_surround_circle.row, 2) + pow(k.col - h.center_of_surround_circle.col, 2));
+    return distance <= radius;
+}
+double calculate_distance(pair a, pair b){
+    double d= sqrt (pow (a.row - b.row,2) + pow(a.col-b.col));
+    return d;
 }
 
-int dfs_visit(char** map,char**mark, int x, int y, pair **parent, pair finish) {
-    mark[x][y] = 'v';
-    if (x == finish.row && y == finish.col) {
-        return 1;
-    }
-    int deltax[] = {-1, 0, 0, +1};
-    int deltay[] = {0, +1, -1, 0};
-    for (int i = 0; i < 4; i++) {
-        int nx = x + deltax[i];
-        int ny = y + deltay[i];
-        if (nx >= 2 && nx < COLS && ny >= 2 && ny < LINES) { 
-            if (map[nx][ny] == '&' && mark[nx][ny] == 'n') {
-                parent[nx][ny].row = x;
-                parent[nx][ny].col = y;
-                if (dfs_visit(map, mark, nx, ny, parent, finish)) {
-                    return 1;
-                }
+void sort_edged(edge * Edge, int counter){
+    for(int i=0; i<counter;i++ ){
+        for(int j=0;j<counter-i; j++){
+            if(Edge[i].tool>Edge[i+1].tool){
+                edge temp=Edge [i];
+                Edge[i]=Edge[i+1];
+                Edge[i+1]=temp;
             }
         }
     }
-    return 0;
 }
 
-void draw_path(pair start, pair current, pair **parent, char** map) {
-    map[current.row][current.col] = '*';
-    if (current.row != start.row || current.col != start.col) {
-        draw_path(start, parent[current.row][current.col], parent, map);
+typedef struct{
+    int parent;
+    int rank;
+}subset;
+
+int find(subset*subsets, int i){
+    if(subsets[i].parent !=i){
+        subsets[i].parent=find(subsets, subsets[i].parent);
+        return subsets[i].parent;
     }
+}
+void union_set(subset*subsets, int x, int y){
+    int root_x=find(subsets, x);
+    int root_y=find(subsets, y);
+    if(subsets[root_x].rank < subsets[root_y].rank){
+        subsets[root_x].parent=root_y;
+    }
+    else if(subsets[root_x].rank==subsets[root_y].rank){
+        subsets[root_y].parent=root_x;
+        subsets[root_x].rank++;
+    }
+    else
+    subsets[root_y].parent=root_x;
+
+}
+void kruskal(edge *Edge, int num_edges, int num_points){
+    edge * result= (edge*)malloc(num_points*sizeof(edge));
+    int e=0;
+    int i=0;
+    subset* subsets=(subset*)malloc(num_points*sizeof(subset));
+    for(int v=0; v<num_points; v++){
+        subsets[v].parent=v;
+        subsets[v].rank=0;
+    }
+    while(e<num_points -1 && i<num_edges){
+        edge next=Edge[i++];
+        int x=find(subsets, next.first.row);
+        int y=find(subsets, next.second.row);
+        if(x!=y){
+            result[e++]=next;
+            union_sets(subsets, x,y);
+        }
+
+    }
+}
+
+void room_to_point(room *new_rooms, int rooms) {
+    pair* entrances_exits = (pair*)malloc(rooms * 2 * sizeof(pair)); 
+
+    for (int i = 0; i < rooms; i++) {
+
+        new_rooms[i].entrance.row = new_rooms[i].first_y + new_rooms[i].height / 2;
+        new_rooms[i].entrance.col = new_rooms[i].first_x + new_rooms[i].width;
+
+        new_rooms[i].exit.row = new_rooms[i].first_y + new_rooms[i].height / 2;
+        new_rooms[i].exit.col = new_rooms[i].first_x;
+
+        entrances_exits[2 * i] = new_rooms[i].entrance;
+        entrances_exits[2 * i + 1] = new_rooms[i].exit;
+    }
+
+    triangle *delaunay_triangle = (triangle*)malloc(100 * sizeof(triangle));
+    triangle first = {{-COLS, -LINES}, {2 * COLS, -LINES}, {COLS, 2 * LINES}};
+    delaunay_triangle[0] = first;
+    int number_of_triangle = 1;
+    calculate_center_of_circle(&delaunay_triangle[0]);
+
+    for (int i = 0; i < rooms * 2; i++) { 
+
+        triangle* new_triangles = (triangle*)malloc(300 * sizeof(triangle));
+        int count = 0;
+
+        for (int j = 0; j < number_of_triangle; j++) {
+
+            double radius = sqrt(pow(delaunay_triangle[j].a1.row - delaunay_triangle[j].center_of_surround_circle.row, 2) + pow(delaunay_triangle[j].a1.col - delaunay_triangle[j].center_of_surround_circle.col, 2));
+            if (is_inside_of_circle(entrances_exits[i], delaunay_triangle[j], radius)) {
+
+                triangle first_new = {delaunay_triangle[j].a1, delaunay_triangle[j].a2, entrances_exits[i]};
+                new_triangles[count++] = first_new;
+                calculate_center_of_circle(&new_triangles[count-1]);
+                triangle second_new = {delaunay_triangle[j].a2, delaunay_triangle[j].a3, entrances_exits[i]};
+                new_triangles[count++] = second_new;
+                calculate_center_of_circle(&new_triangles[count-1]);
+                triangle third_new = {delaunay_triangle[j].a3, delaunay_triangle[j].a1, entrances_exits[i]};
+                new_triangles[count++] = third_new;
+                calculate_center_of_circle(&new_triangles[count-1]);
+
+            }
+        }
+
+        for (int k = 0; k < count; k++) {
+            delaunay_triangle[k] = new_triangles[k];
+        }
+
+        number_of_triangle = count;
+        edge * Edge= (edge*)malloc(3*count*sizeof(edge));
+        int ll=-1;
+        for(int i=0; i<number_of_triangle; i++){
+            
+        Edge[++ll]= (edge){delaunay_triangle[i].a1, delaunay_triangle[i].a2,calculate_distance(delaunay_triangle[i].a1, delaunay_triangle[i].a2) };
+        Edge[++ll]= (edge){delaunay_triangle[i].a2, delaunay_triangle[i].a3,calculate_distance(delaunay_triangle[i].a2, delaunay_triangle[i].a3) };
+        Edge[++ll]= (edge){delaunay_triangle[i].a3, delaunay_triangle[i].a1,calculate_distance(delaunay_triangle[i].a1, delaunay_triangle[i].a3) };
+
+        }
+        sort_edged(Edge,ll+1);
+        kruskal(Edge, ll+1, num)
+
+        free(new_triangles);
+    }
+
+    free(entrances_exits);
+    free(delaunay_triangle);
 }
