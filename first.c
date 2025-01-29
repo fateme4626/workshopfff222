@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <locale.h>
@@ -11,6 +13,12 @@
 #define min_number_of_rooms 5
 #define max_number_of_room 10
 #define min_size_of_h_w 8
+
+typedef struct
+{
+    int x;
+    int y;
+} pair;
 
 typedef struct
 {
@@ -29,25 +37,17 @@ typedef struct
     char name[80];
     int score;
     int gold;
+    pair position;
 } player;
-typedef struct
-{
-    double row;
-    double col;
-} pair;
+
 typedef struct
 {
     int width;
+    int y;
+
     int height;
-    int first_x;
-    int first_y;
-    int number_of_door;
-    pair entrance;
-    pair exit;
+    int x;
 } room;
-
-
-
 
 void menu(Gamer *g);
 void draw_border();
@@ -60,18 +60,13 @@ char *random_pass();
 void game_menu(Gamer *g, const char *filename);
 void sort_scores(const char *filename, Gamer *g);
 void show_scores(player *scores, int i, Gamer *g);
-void draw_map();
-int check_rooms(int rooms, room *new_rooms, room new);
- void draw_map();
 void new_game(Gamer *g);
-int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish, int , int);
+int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish, int, int);
 void initialize(char ***mark, pair ***parent);
 void draw_path(pair start, pair current, pair **parent, char **map);
-void setting(Gamer*g);
-void difficulty(Gamer*g);
-void hero_setting(Gamer*g);
-void room_to_point(room *new_rooms, int rooms);
-
+void setting(Gamer *g);
+void difficulty(Gamer *g);
+void hero_setting(Gamer *g);
 
 int main()
 {
@@ -80,9 +75,10 @@ int main()
     clear();
     cbreak();
     curs_set(0);
-    keypad(stdscr, TRUE);
+    keypad(stdscr, TRUE); //
     setlocale(LC_ALL, "");
     start_color();
+    halfdelay(1);
     can_change_color();
     init_pair(1, COLOR_RED, COLOR_BLACK);
     menu(&g);
@@ -92,6 +88,9 @@ int main()
     game_menu(&g, filename);
 
     char game_all_scores[100][1000];
+
+    refresh();
+    getch();
     endwin();
     return 0;
 }
@@ -495,15 +494,6 @@ void game_menu(Gamer *g, const char *filename)
     return;
 }
 
-void new_game(Gamer *g)
-{
-    clear();
-    draw_border();
-    draw_map();
-    refresh();
-    getch();
-}
-
 void continue_game()
 {
 }
@@ -724,320 +714,313 @@ void show_scores(player *scores, int count, Gamer *g)
     else
     {
         mvprintw(3, (COLS - 2) / 2, "💰");
-
         //  for (int y = 0; y < count; y++) {
         int line = (LINES - count) / 2 + 1;
         //  if (y == 0) {
         mvprintw(line, (COLS - strlen("Legend")) / 2 - 2, "\xF0\x9F\x8F\x86 Legend");
         // }
         /*
-                    mvprintw(line, (COLS - strlen(scores[y].name)) / 2, "%s", scores[y].name);
-                    mvprintw(line, (COLS - 2) / 2, "%d", scores[y].gold);
-                    mvprintw(line, (COLS - 2) * 4 / 5, "%d", scores[y].score); */
+         mvprintw(line, (COLS - strlen(scores[y].name)) / 2, "%s", scores[y].name);
+         mvprintw(line, (COLS - 2) / 2, "%d", scores[y].gold);
+         mvprintw(line, (COLS - 2) * 4 / 5, "%d", scores[y].score); */
         // }
     }
-
     refresh();
     getch();
 }
 
-int check_rooms(int rooms, room *new_rooms, room new_room)
+
+
+bool init = 0;
+bool p_placed = 0;
+int r_placed = 0;
+bool t_placed = 0;
+int p_gold = 0;
+int initial_x, initial_y;
+int ty, tx;
+
+void initilizing_map(int rows, int cols, char map[rows][cols])
 {
-    for (int k = 0; k <= rooms; k++)
+
+    for (int y = 0; y <= rows; y++)
     {
-        if ((new_rooms[k].first_x < new_room.first_x + new_room.width &&
-            new_rooms[k].first_x + new_rooms[k].width+5 > new_room.first_x &&
-            new_rooms[k].first_y < new_room.first_y + new_room.height &&
-            new_rooms[k].first_y + new_rooms[k].height+5 > new_room.first_y) || 
-            (
-            new_rooms[k].first_x < new_room.first_x + new_room.width+5 &&
-            new_rooms[k].first_x + new_rooms[k].width > new_room.first_x &&
-            new_rooms[k].first_y < new_room.first_y + new_room.height+5 &&
-            new_rooms[k].first_y + new_rooms[k].height > new_room.first_y))
-            
+        for (int x = 0; x <= cols; x++)
         {
-            return 0;
+            map[y][x] = ' ';
         }
     }
+    return;
+}
+
+int check_collision(int cols, char map[][cols], int y, int x, int width, int height)
+{
+    for (int y1 = y; y1 <= y + width; y1++)
+    {
+        for (int x1 = x; x1 <= x + height; x1++)
+        {
+            if (map[y1][x1] != ' ' ||
+                map[y1 + 3][x1] != ' ' || map[y1][x1 + 3] != ' ' ||
+                map[y1 - 3][x1] != ' ' || map[y1][x1 - 3] != ' ')
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+int check_possible_hallway(int temp_x, int temp_y, int x , int y,int rows,
+ int cols, char map[rows][cols])
+{
+    int count=0;
+        int path_y, path_x;
+        for (path_y = temp_y; path_y != y;)
+        {
+            if (map[path_y][temp_x] == '#' )
+            {
+                return 1;
+            }
+            else if(map[path_y][temp_x] == '|' || map[path_y][temp_x] == '-'){
+                count++;
+            }
+
+            if (temp_y < y)
+            {
+                path_y++;
+            }
+            else if (temp_y > y)
+            {
+                path_y--;
+            }
+        }
+        for (int path_x = temp_x; path_x != x;)
+        {
+            if (map[path_y][path_x] == '#')
+            {
+                return 1;
+            }
+            else if(map[path_y][path_x] == '|' ||map[path_y][path_x] == '-'){
+                count++;
+            }
+            if (temp_x < x)
+            {
+                path_x++;
+            }
+            else if (temp_x > x)
+            {
+                path_x--;
+            }
+        }
+        if(count>2)
+        return 1;
+        return 0;
+}
+int check_collision_hallway_and_room(int y, int x,int rows, int cols, char map[rows][cols])
+{
+    if ( map[y-1][x] =='.' || map[y+1][x]=='.' || map[y][x+1]=='.' || map[y][x-1]=='.')
+    return 1;
+    
+    return 0;
+}
+
+void display_map(int cols, int rows, char map[rows][cols])
+{
+    for (int y = 0; y <= rows; y++)
+    {
+        for (int x = 0; x <= cols; x++)
+        {
+          
+            mvaddch(y, x, map[y][x]);
+        }
+    }
+    return;
+}
+
+
+int draw_map(int rows, int cols, char map[rows][cols])
+{
+
+    srand(time(NULL));
+    int first_y, first_x;
+    int size_y;
+    int size_x;
+    int r_center_y;
+    int r_center_x;
+    int r_old_center_y;
+    int r_old_center_x;
+    int room_number = 6;
+    int collision_of_hallway = 0;
+
+    collision_of_hallway = 0;
+    r_placed = 0;
+    while (r_placed < room_number)
+    {
+        bool collision;
+        int room_loop_counter = 0;
+        int temp_x = first_x, temp_y = first_y, temp_size_y = size_y, temp_size_x = size_x;
+        do
+        {
+            collision = 0;
+            do
+            {
+                first_y = rand() % rows - 2;
+                first_x = rand() % cols - 2;
+
+                size_y = rand() % 5 + 10;
+                size_x = rand() % 5 + 12;
+
+            } while (first_y < 2 || first_x + size_x > cols - 2 || first_y + size_y > rows - 2 || first_x < 2);
+
+            room_loop_counter++;
+            if (room_loop_counter > 100)
+            {
+                
+                return 0;
+            }
+        } while (check_collision(cols, map, first_y, first_x, size_y, size_x) ||
+                 check_possible_hallway(temp_x + temp_size_x / 2, temp_y + temp_size_y / 2,
+                                        first_x + size_x / 2, first_y + size_y / 2,
+                                        rows, cols, map));
+
+        for (int y = first_y + 1; y <= first_y + size_y - 1; y++)
+        {
+            for (int x = first_x + 1; x <= first_x + size_x - 1; x++)
+            {
+                map[y][x] = '.';
+            }
+        }
+        for (int yy = first_y; yy <= first_y + size_y; yy++)
+        {
+            map[yy][first_x] = '|';
+            map[yy][first_x + size_x] = '|';
+        }
+        for (int xx = first_x; xx <= first_x + size_x; xx++)
+        {
+            map[first_y][xx] = '-';
+            map[first_y + size_y][xx] = '-';
+        }
+        r_placed++;
+
+        if (r_placed > 0)
+        {
+            r_old_center_x = r_center_x;
+            r_old_center_y = r_center_y;
+        }
+        // room center
+        r_center_y = first_y + size_y / 2;
+        r_center_x = first_x + size_x / 2;
+        if (r_placed > 1)
+        {
+            int path_y, path_x;
+            for (path_y = r_old_center_y; path_y != r_center_y;)
+            {
+                if(map[path_y][r_old_center_x]==' '){
+                map[path_y][r_old_center_x] = '#';}
+                else if(map[path_y][r_old_center_x]=='-' || map[path_y][r_old_center_x]=='|')
+                map[path_y][r_old_center_x] = '+';
+                if (r_old_center_y < r_center_y)
+                {
+                    path_y++;
+                }
+                else if (r_old_center_y > r_center_y)
+                {
+                    path_y--;
+                }
+            }
+            for (int path_x = r_old_center_x; path_x != r_center_x;)
+            {
+                
+                if(map[path_y][path_x] == ' ')
+                map[path_y][path_x] = '#';
+                else if(map[path_y][path_x] == '-' || map[path_y][path_x] == '|')
+                map[path_y][path_x] = '+';
+                if (r_old_center_x < r_center_x)
+                {
+                    path_x++;
+                }
+                else if (r_old_center_x > r_center_x)
+                {
+                    path_x--;
+                }
+            }
+            
+        }
+    }
+
+    display_map(cols, rows, map);
+
+    mvprintw(rows, 0, "Gold: %d", p_gold);
     return 1;
 }
 
-
-void draw_map()
+void move_char(int input, player *user, int cols, int rows, char map[rows][cols])
 {
-    clear();
-    srand(time(NULL));
-    int COLS=getmaxx(stdscr);
-    int LINES=getmaxy(stdscr);
-    char **map = (char **)malloc(COLS * sizeof(char *));
-    for (int i = 0; i < COLS; i++)
+    if (p_placed == 0)
     {
-        map[i] = (char *)malloc(LINES * sizeof(char));
-    }
-    for (int i = 0; i < COLS; i++)
-    {
-        for (int j = 0; j < LINES-1; j++)
-        {
-            map[i][j] = '&'; //& means it's empty
-        }
-    }
-    for(int i=0; i<COLS; i++){
-        map[i][LINES-1]='\0';
-    }
-
-    int number_of_rooms = rand() % (max_number_of_room - min_number_of_rooms) + min_number_of_rooms;
-    int max_size = ((COLS - 5) / (number_of_rooms * 8)) < ((LINES - 5) / (number_of_rooms * 8)) ? ((COLS - 5) / (number_of_rooms * 8)) : ((LINES - 7) / (number_of_rooms * 8));
-    room *new_rooms = (room *)malloc(number_of_rooms * sizeof(room));
-    int rooms = 0;
-
-    for (int i = 0; i < number_of_rooms; i++)
-    {
-        int width = rand() % (max_size - min_size_of_h_w) + min_size_of_h_w;
-        int height = rand() % (max_size - min_size_of_h_w) + min_size_of_h_w;
-        room new_room;
-        new_room.width = width;
-        new_room.height = height;
         do
         {
-            new_room.first_x = rand() % (COLS - 4 - width);
-            new_room.first_y = rand() % (LINES - 4 - height);
-        } while (!check_rooms(rooms, new_rooms, new_room));
-        new_room.number_of_door = 0; 
-        new_rooms[rooms++] = new_room; 
-
-        for (int w = 1; w < width - 1; w++)
-        {
-            for (int h = 1; h < height - 1; h++)
-            {
-                map[new_room.first_x + w][new_room.first_y + h] = '.';
-            }
-        }
-        for (int p = 1; p < height - 1; p++)
-        {
-            map[new_room.first_x][new_room.first_y + p] = '|';
-            map[width - 1 + new_room.first_x][new_room.first_y + p] = '|';
-        }
-        for (int p = 1; p < width - 1; p++)
-        {
-            map[new_room.first_x + p][new_room.first_y] = '-';
-            map[p + new_room.first_x][new_room.first_y + height - 1] = '-';
-        }
-        map[new_room.first_x][new_room.first_y + height - 1] = '#';
-        map[new_room.first_x][new_room.first_y] = '#';
-        map[new_room.first_x + width - 1][new_room.first_y] = '#';
-        map[new_room.first_x + width - 1][new_room.first_y + height - 1] = '#';
+            initial_y = rand() % rows - 3;
+            user->position.y = initial_y - 3;
+            initial_x = rand() % cols;
+            user->position.x = initial_x;
+        } while (map[initial_y][initial_x] != '.');
+        p_placed = 1;
     }
 
-room_to_point(new_rooms,rooms);
-    for (int j = 0; j < LINES; j++)
+    if (input == KEY_UP && (map[initial_y - 1][initial_x] == '.' || map[initial_y - 1][initial_x] == '#' ||
+      map[initial_y - 1][initial_x] == '+' ))
+        initial_y--;
+    else if (input == KEY_DOWN && (map[initial_y + 1][initial_x] == '.' || map[initial_y + 1][initial_x] == '#' || 
+    map[initial_y + 1][initial_x] == '+'))
+        initial_y++;
+    else if (input == KEY_RIGHT && (map[initial_y][initial_x + 1] == '.' || map[initial_y][initial_x + 1] == '#'||
+    map[initial_y][initial_x + 1] == '+'))
+        initial_x++;
+    else if (input == KEY_LEFT && (map[initial_y][initial_x - 1] == '.' || map[initial_y][initial_x - 1] == '#'||
+    map[initial_y][initial_x - 1] == '+'))
+        initial_x--;
+
+    if (t_placed == 0)
     {
-        for (int i = 0; i < COLS; i++)
+        do
         {
-            if (map[i][j] != '&')
-            {
-                mvprintw(j, i,"%c",map[i][j] );
-            }
-         
-            
-        }
+            ty = rand() % rows - 1;
+            tx = rand() % cols - 1;
+        } while (map[ty][tx] != '.');
+        t_placed = 1;
     }
 
+    if (ty == initial_y && tx == initial_x)
+    {
+        t_placed = 0;
+        // p_placed=0;
+        // r_placed=0;
+        p_gold += rand() % 10 + 1;
+    }
+
+    mvaddch(ty, tx, 't');
+    mvaddch(initial_y, initial_x, 'H');
+    user->position.y = initial_y;
+    user->position.x = initial_x;
+}
+
+void new_game(Gamer *g)
+{
+    clear();
+    int rows;
+    int cols;
+    getmaxyx(stdscr, rows, cols);
+    char map[rows][cols];
+    int input = '\0';
+    player user;
+do{
+    initilizing_map(rows - 1, cols - 1, map);
+}while(!draw_map(rows - 1, cols - 1, map));
+
+    do
+    {
+        display_map(cols - 1, rows - 1, map);
+        move_char(input, &user, cols - 1, rows - 1, map);
+    } while ((input = getch()) != 'q'); // 'q' means quit
     refresh();
     getch();
-}
-
-
-
-typedef struct {
-    pair a1;
-    pair a2;
-    pair a3;
-    pair center_of_surround_circle;
-} triangle;
-typedef struct {
-    pair first;
-    pair second;
-    double tool;
-}edge;
-
-
-void calculate_center_of_circle(triangle* t) {
-    double A = t->a2.row - t->a1.row;
-    double B = t->a2.col - t->a1.col;
-    double C = t->a3.row - t->a1.row;
-    double D = t->a3.col - t->a1.col;
-    double E = A * (t->a1.row + t->a2.row) + B * (t->a1.col + t->a2.col);
-    double F = C * (t->a1.row + t->a3.row) + D * (t->a1.col + t->a3.col);
-    double G = 2 * (A * (t->a3.col - t->a2.col) - B * (t->a3.row - t->a2.row));
-    
-    t->center_of_surround_circle.row = (D * E - B * F) / G;
-    t->center_of_surround_circle.col = (A * F - C * E) / G;
-}
-
-// بررسی داخل یا خارج بودن نقطه در دایره محیطی
-int is_inside_of_circle(pair p, triangle t, double radius) {
-    double distance = sqrt(pow(p.row - t.center_of_surround_circle.row, 2) + 
-                           pow(p.col - t.center_of_surround_circle.col, 2));
-         
-    return distance <= radius;
-}
-
-void draw_hallway(edge Edge) {
-    int x1 = (int)Edge.first.col;
-    int y1 = (int)Edge.first.row;
-    int x2 = (int)Edge.second.col;
-    int y2 = (int)Edge.second.row;
-    mvprintw(y1, x1, "*");
-    while (x1 != x2 || y1 != y2) {
-        if (x1 < x2) x1++;
-        else if (x1 > x2) x1--;
-        if (y1 < y2) y1++;
-        else if (y1 > y2) y1--;
-        mvprintw(y1, x1, "*");
-    }
-}
-double calculate_distance(pair a, pair b){
-    double d= sqrt (pow (a.row - b.row,2) + pow(a.col-b.col,2));
-    return d;
-}
-
-void sort_edged(edge * Edge, int counter){
-    for(int i=0; i<counter;i++ ){
-        for(int j=0;j<counter-i; j++){
-            if(Edge[i].tool>Edge[i+1].tool){
-                edge temp=Edge [i];
-                Edge[i]=Edge[i+1];
-                Edge[i+1]=temp;
-            }
-        }
-    }
-}
-
-
-
-typedef struct {
-    int parent;
-    int rank;
-} subset;
-
-
-int find(subset* subsets, int i) {
-    if (subsets[i].parent != i) {
-        subsets[i].parent = find(subsets, subsets[i].parent);
-    }
-    return subsets[i].parent;
-}
-
-void union_sets(subset* subsets, int x, int y) {
-    int root_x = find(subsets, x);
-    int root_y = find(subsets, y);
-    if (subsets[root_x].rank < subsets[root_y].rank) {
-        subsets[root_x].parent = root_y;
-    } else if (subsets[root_x].rank == subsets[root_y].rank) {
-        subsets[root_y].parent = root_x;
-        subsets[root_x].rank++;
-    } else {
-        subsets[root_y].parent = root_x;
-    }
-}
-
-
-void kruskal(edge *Edge, int num_edges, int num_points) {
-    edge* result = (edge*)malloc(num_points * sizeof(edge));
-    int e = 0;
-    int i = 0;
-    subset* subsets = (subset*)malloc(num_points * sizeof(subset));
-    for (int v = 0; v < num_points; v++) {
-        subsets[v].parent = v;
-        subsets[v].rank = 0;
-    }
-    printw("%d   %d   %d   %d   ",e,num_points,i,num_edges);
-
-    while (e < num_points - 1 && i < num_edges) {
-        edge next = Edge[i++];
-        int x = find(subsets, next.first.row);
-        int y = find(subsets, next.second.row);
-        printw("\n  %d   %d",x,y);
-        if (x != y) {
-            result[e++] = next;
-            union_sets(subsets, x, y);
-        }
-    }
-    printw(" in eeyyeee %d \n",e);
-    for (i = 0; i < e; i++) {
-        draw_hallway(result[i]);
-    }
-    free(result);
-    free(subsets);
-}
-
-
-void room_to_point(room* new_rooms, int rooms) {
-    pair* entrances_exits = (pair*)malloc(rooms * 2 * sizeof(pair));
-    printw(" tedad otagh  %d \n",rooms);
-    for (int i = 0; i < rooms; i++) {
-        new_rooms[i].entrance.row = new_rooms[i].first_y + new_rooms[i].height / 2;
-        new_rooms[i].entrance.col = new_rooms[i].first_x + new_rooms[i].width;
-
-        new_rooms[i].exit.row = new_rooms[i].first_y + new_rooms[i].height / 2;
-        new_rooms[i].exit.col = new_rooms[i].first_x;
-
-        entrances_exits[2 * i] = new_rooms[i].entrance;
-        entrances_exits[2 * i + 1] = new_rooms[i].exit;
-
-    }
-
-    triangle* delaunay_triangle = (triangle*)malloc(100 * sizeof(triangle));
-   
-    triangle first = {{-10000, -10000}, {20000, -10000}, {20000, 20000}};
-    delaunay_triangle[0] = first;
-    int number_of_triangle = 1;
-    calculate_center_of_circle(&delaunay_triangle[0]);
-
-    for (int i = 0; i < rooms * 2; i++) {
-        triangle* new_triangles = (triangle*)malloc(300 * sizeof(triangle));
-        
-        int count = 0;
-
-        for (int j = 0; j < number_of_triangle; j++) {
-            double radius = sqrt(pow(delaunay_triangle[j].a1.row - delaunay_triangle[j].center_of_surround_circle.row, 2) +
-                                 pow(delaunay_triangle[j].a1.col - delaunay_triangle[j].center_of_surround_circle.col, 2));
-            if (is_inside_of_circle(entrances_exits[i], delaunay_triangle[j], radius)) {
-                triangle first_new = {delaunay_triangle[j].a1, delaunay_triangle[j].a2, entrances_exits[i]};
-                new_triangles[count++] = first_new;
-                calculate_center_of_circle(&new_triangles[count - 1]);
-
-                triangle second_new = {delaunay_triangle[j].a2, delaunay_triangle[j].a3, entrances_exits[i]};
-                new_triangles[count++] = second_new;
-                calculate_center_of_circle(&new_triangles[count - 1]);
-
-                triangle third_new = {delaunay_triangle[j].a3, delaunay_triangle[j].a1, entrances_exits[i]};
-                new_triangles[count++] = third_new;
-                calculate_center_of_circle(&new_triangles[count - 1]);
-            }
-        }
-
-        for (int k = 0; k < count; k++) {
-            delaunay_triangle[k] = new_triangles[k];
-        }
-        free(new_triangles);
-
-        number_of_triangle = count;
-        printw("Number of triangles after iteration %d: %d\n", i, number_of_triangle); // دیباگینگ
-    }
-
-    edge* Edge = (edge*)malloc(3 * number_of_triangle * sizeof(edge));
-    int ll = -1;
-    for (int i = 0; i < number_of_triangle; i++) {
-        Edge[++ll] = (edge){delaunay_triangle[i].a1, delaunay_triangle[i].a2, calculate_distance(delaunay_triangle[i].a1, delaunay_triangle[i].a2)};
-        Edge[++ll] = (edge){delaunay_triangle[i].a2, delaunay_triangle[i].a3, calculate_distance(delaunay_triangle[i].a2, delaunay_triangle[i].a3)};
-        Edge[++ll] = (edge){delaunay_triangle[i].a3, delaunay_triangle[i].a1, calculate_distance(delaunay_triangle[i].a1, delaunay_triangle[i].a3)};
-    }
-
-    sort_edged(Edge, ll + 1);
-    kruskal(Edge, ll + 1, 2 * rooms);
-
-    free(Edge);
-    free(entrances_exits);
-    free(delaunay_triangle);
 }
