@@ -867,16 +867,6 @@ int check_position_of_object(int y, int x, int rows, int cols, char map[rows][co
     return 11;
 }
 
-int num_of_treasure_room = 0;
-void generate_treasure_room(room map_rooms[6], int current_room)
-{
-    if(current_room==3)
-    {
-        num_of_treasure_room = 4;
-    }
-    else 
-    num_of_treasure_room =3;
-}
 int room_number_of_password_door;
 
 void generate_password_door(room map_rooms[6], player user, int rows, int cols, char map[rows][cols])
@@ -912,39 +902,21 @@ void generate_password_door(room map_rooms[6], player user, int rows, int cols, 
 
 void display_map(player *user, int cols, int rows, char map[rows][cols], room map_rooms[6], int n)
 {
-   // if (!n){
+    if (!n){
         clear();
-   // }
-
-    for(int i=0 ; i<6; i++)
-    {
-        for(int x= map_rooms[i].y ; x <= map_rooms[i].y+ map_rooms[i].size_y ; x++)
-        {
-            for(int y= map_rooms[i].x ; y<= map_rooms[i].y  +map_rooms[i].size_y ; y++)
-            {
-                if(i == num_of_treasure_room && i!=0)
-                {
-                    attron(COLOR_PAIR(5));
-                    mvaddch(x, y, map[x][y]);
-                    attroff(COLOR_PAIR(5));
-
-                }
-                else {
-                    attron(COLOR_PAIR(2));
-                    mvaddch(x, y, map[x][y]);
-                    attroff(COLOR_PAIR(2));
-
-                }
-            }
-        }
     }
 
     for (int y = 2; y <= rows; y++)
     {
         for (int x = 2; x <= cols; x++)
         {
-           
-             if (map[y][x] == '#')
+            if (map[y][x] == '.' || map[y][x] == '|' || map[y][x] == '-' || map[y][x] == '+')
+            {
+                attron(COLOR_PAIR(4) | A_BOLD);
+                mvaddch(y, x, map[y][x]);
+                attroff(COLOR_PAIR(4));
+            }
+            else if (map[y][x] == '#')
             {
                 attron(COLOR_PAIR(2));
                 mvaddch(y, x, map[y][x]);
@@ -1193,7 +1165,6 @@ int draw_map_for_other_floor(int rows, player *user,
             }
         }
     }
-   
 
     map[user->position.y][user->position.x] = '<';
 
@@ -1206,13 +1177,7 @@ int draw_map_for_other_floor(int rows, player *user,
         initial_x = rand() % cols;
         user->position.x = initial_x;
     } while (map[initial_y][initial_x] != '.');
-    
-    if(user->level == 4)
-    {
-        int current_room= check_position_of_object(user->position.y, user->position.x,
-    rows, cols, map, map_rooms);
-        generate_treasure_room(map_rooms, current_room );
-    }
+
     return 1;
 }
 
@@ -1423,7 +1388,7 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
 
     case '&':
         // return 5;
-       /* if (the_password_is_shown == 0 && map_rooms[room_number_of_password_door].unlock==0)
+        if (the_password_is_shown == 0 && map_rooms[room_number_of_password_door].unlock==0)
         {
             password = generate_random_password();
             mvprintw(0, 2, "password : %d ", password);
@@ -1444,14 +1409,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         user->position.x = initial_x;
         user->position.y = initial_y;
         break;
-        */user->position.y = initial_y;
-        user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
-        return 1;
-
 
     case '@':
-       /* if (map_rooms[room_number_of_password_door].unlock == 1)
+        if (map_rooms[room_number_of_password_door].unlock == 1)
         {
             initial_x = user->position.x;
             initial_y = user->position.y;
@@ -1465,12 +1425,6 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
             input_pass= atoi(str);
             control_the_password_door(input_pass, map_rooms,rows, cols, map );
         }
-        */
-       user->position.y = initial_y;
-        user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
-        return 1;
-
 
         
     }
@@ -1482,7 +1436,6 @@ void control_play_in_a_floor(int rows, int cols, int floor,
 
 {
     the_password_is_shown = 0;
-    num_of_treasure_room= 0;
     if (floor > 4)
     {
         return;
