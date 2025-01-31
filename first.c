@@ -39,6 +39,8 @@ typedef struct
     pair position;
     int level;
     int health;
+    int num_foods;
+    // type of food
 } player;
 
 typedef struct
@@ -49,12 +51,18 @@ typedef struct
     int size_x;
     int x;
 
+    bool visited;
+
     int doors_num;
     pair doors[4];
 
-    bool have_password_door;
-    bool unlock;
-    bool have_password;
+    int number_of_gold;
+
+    pair food[4];
+    int num_food;
+    int num_magic_food;
+    int fased_food;
+    int ala_food;
 
 } room;
 
@@ -94,8 +102,7 @@ int main()
     init_pair(2, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(3, COLOR_GREEN, COLOR_BLACK);
     init_pair(4, COLOR_BLUE, COLOR_BLACK);
-    init_pair(5, COLOR_YELLOW, COLOR_RED);
-
+    init_pair(5, COLOR_YELLOW, COLOR_BLACK);
 
     menu(&g);
     clear();
@@ -870,70 +877,64 @@ int check_position_of_object(int y, int x, int rows, int cols, char map[rows][co
 int num_of_treasure_room = 0;
 void generate_treasure_room(room map_rooms[6], int current_room)
 {
-    if(current_room==3)
+    if (current_room == 3)
     {
         num_of_treasure_room = 4;
     }
-    else 
-    num_of_treasure_room =3;
+    else
+        num_of_treasure_room = 3;
 }
+
 int room_number_of_password_door;
-
-void generate_password_door(room map_rooms[6], player user, int rows, int cols, char map[rows][cols])
-{
-    int current_room = check_position_of_object(user.position.y, user.position.x, rows, cols, map,
-                                                map_rooms);
-    int password_x;
-    int password_y;
-
-    for (int i = 0; i < 6; i++)
-    {
-        if (map_rooms[i].doors_num == 1 )
-        {
-            map[map_rooms[i].doors[map_rooms[i].doors_num - 1].y][map_rooms[i].doors[map_rooms[i].doors_num - 1].x] = '@';
-            room_number_of_password_door = i;
-            map_rooms[i].have_password_door = 1;
-            map_rooms[i].unlock = 0;
-
-            if (user.position.x == map_rooms[current_room].x + 1 && user.position.y == map_rooms[current_room].y + 1)
-            {
-                map[map_rooms[current_room].y + map_rooms[current_room].size_y - 1][map_rooms[current_room].x + map_rooms[current_room].size_x - 1] = '&';
-            }
-            else
-            {
-                map[map_rooms[current_room].y + 1][map_rooms[current_room].x + 1] = '&';
-            }
-
-            map_rooms[current_room].have_password = 1;
-            return;
-        }
-    }
-}
 
 void display_map(player *user, int cols, int rows, char map[rows][cols], room map_rooms[6], int n)
 {
-   // if (!n){
-        clear();
-   // }
-
-    for(int i=0 ; i<6; i++)
+    clear();
+    refresh();
+    int current_room = check_position_of_object(user->position.y, user->position.x, rows, cols, map, map_rooms);
+    for (int i = 0; i < 6; i++)
     {
-        for(int x= map_rooms[i].y ; x <= map_rooms[i].y+ map_rooms[i].size_y ; x++)
+
+        for (int x = map_rooms[i].y; x <= map_rooms[i].y + map_rooms[i].size_y; x++)
         {
-            for(int y= map_rooms[i].x ; y<= map_rooms[i].x  +map_rooms[i].size_x ; y++)
+            for (int y = map_rooms[i].x; y <= map_rooms[i].x + map_rooms[i].size_x; y++)
             {
-                if(i == num_of_treasure_room && i!=0)
+                if (i == num_of_treasure_room && i != 0 && map[x][y] != '$' && map[x][y] != 'F')
                 {
                     attron(COLOR_PAIR(5) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
                     attroff(COLOR_PAIR(5));
-
                 }
-                else {
+
+                else if (map[x][y] != '$' && map[x][y] != 'F')
+                {
                     attron(COLOR_PAIR(4) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
                     attroff(COLOR_PAIR(4));
-
+                }
+                else
+                {
+                    if (map_rooms[i].visited == 1)
+                    {
+                        if (map[x][y] == '$')
+                        {
+                            attron(COLOR_PAIR(5) | A_BOLD);
+                            mvaddch(x, y, map[x][y]);
+                            attroff(COLOR_PAIR(5));
+                        }
+                        if (map[x][y] == 'F')
+                        {
+                            attron(COLOR_PAIR(3) | A_BOLD);
+                            mvprintw(x, y, "%c", '*');
+                            attroff(COLOR_PAIR(3));
+                        }
+                    }
+                    else
+                    {
+                        attron(COLOR_PAIR(4));
+                        mvaddch(x, y, '.');
+                        attroff(COLOR_PAIR(4));
+                    }
                 }
             }
         }
@@ -943,8 +944,8 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
     {
         for (int x = 2; x <= cols; x++)
         {
-           
-             if (map[y][x] == '#')
+
+            if (map[y][x] == '#')
             {
                 attron(COLOR_PAIR(2));
                 mvaddch(y, x, map[y][x]);
@@ -962,51 +963,72 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
                 mvaddch(y, x, map[y][x]);
                 attroff(COLOR_PAIR(2));
             }
-            else if (map[y][x] == '@')
-            {
-                int i = check_position_of_object(y, x, rows, cols, map, map_rooms);
-                if (map_rooms[i].unlock == 1)
-                {
-                    attron(COLOR_PAIR(3));
-                    mvaddch(y, x, map[y][x]);
-                    attroff(COLOR_PAIR(3));
-                }
-                else
-                {
-                    attron(COLOR_PAIR(1));
-                    mvaddch(y, x, map[y][x]);
-                    attroff(COLOR_PAIR(1));
-                }
-            }
-            else
-                mvaddch(y, x, map[y][x]);
         }
     }
     attron(COLOR_PAIR(3));
     mvprintw(LINES - 1, 2, "level: %d", user->level);
     mvprintw(LINES - 1, 15, "Gold: %d %lc", user->gold, L'💰');
     mvprintw(LINES - 1, 30, "score : %d %lc", user->score, L'⭐');
-    mvprintw(LINES - 1, 45, "Health :");
+    mvprintw(LINES - 1, 47, "Health :");
     for (int i = 1; i <= user->health; i++)
     {
-        mvprintw(LINES - 1, i + 45 + strlen("Health :"), "%lc", L'💚');
+        mvprintw(LINES - 1, i + 47 + strlen("Health :"), "%lc", L'🟩');
     }
     attroff(COLOR_PAIR(3) | A_BOLD);
 
     return;
 }
-int password;
-bool the_password_is_shown;
-int attemps;
 
-int generate_random_password()
+int number_of_gold;
+void gold_placed(room map_rooms[6], int rows, int cols, char map[rows][cols])
 {
-    srand(time(NULL));
-    return rand() % 1000 + 1000;
+    // except room 4 , 3 all rooms have 4 golds
+    for (int i = 0; i < 3; i++)
+    {
+        for (int k = 0; k <= 2; k++)
+        {
+            int x, y;
+            do
+            {
+                x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+                y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+            } while (map[y][x] != '.');
+            map_rooms[i].number_of_gold++;
+            map[y][x] = '$';
+        }
+    }
 }
 
-void control_the_password_door(int input_password, room map_rooms[6],int rows, int cols,
- char map[rows][cols])
+void food_placed(room map_rooms[6], int rows, int cols, char map[rows][cols])
+{
+    // except room 4 , 3 all rooms have 4 golds
+    for (int k = 1; k < 3; k++)
+    {
+        int i;
+        do
+        {
+            i = rand() % 6;
+        } while (map_rooms[i].num_food != 0);
+
+        for (int k = 0; k <= 2; k++)
+        {
+            int x, y;
+            do
+            {
+                x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+                y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+            } while (map[y][x] != '.');
+            map_rooms[i].num_food++;
+            map[y][x] = 'F';
+        }
+    }
+}
+
+#define min_size_of_height_and_weight 8
+#define max_size_of_height_and_weight 10
+
+/*void control_the_password_door(int input_password, room map_rooms[6], int rows, int cols,
+                               char map[rows][cols])
 {
     if (input_password == password)
     {
@@ -1014,12 +1036,12 @@ void control_the_password_door(int input_password, room map_rooms[6],int rows, i
         the_password_is_shown = 0;
         attemps = 0;
         password = 0;
-        for(int i=2; i<=rows; i++)
+        for (int i = 2; i <= rows; i++)
         {
-            for(int j=0; j<=cols; j++)
+            for (int j = 0; j <= cols; j++)
             {
-                if(map[i][j]=='&')
-                map[i][j]=='.';
+                if (map[i][j] == '&')
+                    map[i][j] == '.';
             }
         }
         return;
@@ -1036,6 +1058,7 @@ void control_the_password_door(int input_password, room map_rooms[6],int rows, i
         }
     }
 }
+*/
 
 int draw_map_for_other_floor(int rows, player *user,
                              int cols, char map[rows][cols], room map_rooms[6],
@@ -1060,8 +1083,8 @@ int draw_map_for_other_floor(int rows, player *user,
     // center of_room is initial_x and initial_y
     do
     {
-        size_y = (rand() % 3 + 6);
-        size_x = (rand() % 3 + 6);
+        size_y = (rand() % (max_size_of_height_and_weight - min_size_of_height_and_weight)) + min_size_of_height_and_weight;
+        size_x = (rand() % (max_size_of_height_and_weight - min_size_of_height_and_weight)) + min_size_of_height_and_weight;
         first_x = user->position.x - size_x / 2;
         first_y = user->position.y - size_y / 2;
     } while (first_x < 2 || first_y < 2);
@@ -1104,8 +1127,8 @@ int draw_map_for_other_floor(int rows, player *user,
                 first_y = rand() % rows - 2;
                 first_x = rand() % cols - 2;
 
-                size_y = rand() % 3 + 6;
-                size_x = rand() % 3 + 6;
+                size_y = (rand() % (max_size_of_height_and_weight - min_size_of_height_and_weight)) + min_size_of_height_and_weight;
+                size_x = (rand() % (max_size_of_height_and_weight - min_size_of_height_and_weight)) + min_size_of_height_and_weight;
 
             } while (first_y < 4 || first_x + size_x > cols - 4 || first_y + size_y > rows - 4 || first_x < 4);
 
@@ -1193,7 +1216,6 @@ int draw_map_for_other_floor(int rows, player *user,
             }
         }
     }
-   
 
     map[user->position.y][user->position.x] = '<';
 
@@ -1206,12 +1228,12 @@ int draw_map_for_other_floor(int rows, player *user,
         initial_x = rand() % cols;
         user->position.x = initial_x;
     } while (map[initial_y][initial_x] != '.');
-    
-    if(user->level == 4)
+
+    if (user->level == 4)
     {
-        int current_room= check_position_of_object(user->position.y, user->position.x,
-    rows, cols, map, map_rooms);
-        generate_treasure_room(map_rooms, current_room );
+        int current_room = check_position_of_object(user->position.y, user->position.x,
+                                                    rows, cols, map, map_rooms);
+        generate_treasure_room(map_rooms, current_room);
     }
     return 1;
 }
@@ -1246,8 +1268,8 @@ int draw_map_for_first_floor(int rows, player *user, int cols, char map[rows][co
                 first_y = rand() % rows - 2;
                 first_x = rand() % cols - 2;
 
-                size_y = rand() % 3 + 6;
-                size_x = rand() % 3 + 6;
+                size_y = (rand() % (max_size_of_height_and_weight - min_size_of_height_and_weight)) + min_size_of_height_and_weight;
+                size_x = (rand() % (max_size_of_height_and_weight - min_size_of_height_and_weight)) + min_size_of_height_and_weight;
 
             } while (first_y < 5 || first_x + size_x > cols - 5 || first_y + size_y > rows - 5 || first_x < 5);
 
@@ -1366,7 +1388,7 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
 {
 
     display_map(user, cols, rows, map, map_rooms, n);
-
+    refresh();
     /* if (player_initial_pos == 0)
      {
          do
@@ -1387,7 +1409,7 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         initial_x++;
     else if (input == KEY_LEFT)
         initial_x--;
-
+    int current_room = check_position_of_object(initial_y, initial_x, rows, cols, map, map_rooms);
     switch (map[initial_y][initial_x])
     {
     case '.':
@@ -1421,58 +1443,40 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         initial_y = user->position.y;
         return 2;
 
-    case '&':
-        // return 5;
-       /* if (the_password_is_shown == 0 && map_rooms[room_number_of_password_door].unlock==0)
-        {
-            password = generate_random_password();
-            mvprintw(0, 2, "password : %d ", password);
-            the_password_is_shown = 1;
-            time_t start_time = time(NULL);
-            while (time(NULL) - start_time < 30)
-            {
-                timeout(100);
-                int c = getch();
-                int y = move_char(c, user, cols, rows, map, map_rooms, 1);
-                if(y == 'q'){
-                    return 0;
-                }
-            }
-            mvprintw(0, 2, "                ");
-            the_password_is_shown = 0;
-        }
-        user->position.x = initial_x;
+    case '$':
+        user->gold++;
+        user->score += 5; // gold= 5*score
         user->position.y = initial_y;
-        break;
-        */user->position.y = initial_y;
         user->position.x = initial_x;
         mvaddch(user->position.y, user->position.x, 'H');
+        map[initial_y][initial_x] = '.';
+        display_map(user, cols, rows, map, map_rooms, n);
+        mvaddch(user->position.y, user->position.x, 'H');
+        map_rooms[current_room].number_of_gold--;
+        refresh();
         return 1;
 
-
-    case '@':
-       /* if (map_rooms[room_number_of_password_door].unlock == 1)
+    case 'F': //food
+        if (user->num_foods <= 4)
         {
-            initial_x = user->position.x;
-            initial_y = user->position.y;
+            user->num_foods++;
+            user->position.y = initial_y;
+            user->position.x = initial_x;
             mvaddch(user->position.y, user->position.x, 'H');
+            map[initial_y][initial_x] = '.';
+            display_map(user, cols, rows, map, map_rooms, n);
+            mvaddch(user->position.y, user->position.x, 'H');
+            map_rooms[current_room].number_of_gold--;
+            refresh();
         }
         else
         {
-            mvprintw( 1 , COLS/2-20, "Enter the password : ");
-            int input_pass; char str[4];
-            getnstr(str, 3);
-            input_pass= atoi(str);
-            control_the_password_door(input_pass, map_rooms,rows, cols, map );
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
         }
-        */
-       user->position.y = initial_y;
-        user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
+
         return 1;
-
-
-        
     }
 }
 
@@ -1481,8 +1485,7 @@ void control_play_in_a_floor(int rows, int cols, int floor,
                              room all_floor_rooms[4][6], player *user)
 
 {
-    the_password_is_shown = 0;
-    num_of_treasure_room= 0;
+    num_of_treasure_room = 0;
     if (floor > 4)
     {
         return;
@@ -1493,9 +1496,8 @@ void control_play_in_a_floor(int rows, int cols, int floor,
     for (int i = 0; i < 6; i++)
     {
         map_rooms[i].doors_num = 0;
-        map_rooms[i].have_password = 0;
-        map_rooms[i].have_password_door = 0;
-        map_rooms[i].unlock = 0;
+        map_rooms[i].number_of_gold = 0;
+        map_rooms[i].visited = 0;
     }
 
     if (floor == 0)
@@ -1530,16 +1532,22 @@ void control_play_in_a_floor(int rows, int cols, int floor,
 
     rows--;
     cols--;
+    gold_placed(map_rooms, rows, cols, map);
+    food_placed(map_rooms, rows, cols, map);
     int k;
-    int password;
-    generate_password_door(map_rooms, *user, rows, cols, map);
     do
     {
+        int current_room = check_position_of_object(user->position.y, user->position.x,
+                                                    rows, cols, map, map_rooms);
+        if (current_room != 11)
+            map_rooms[current_room].visited = 1;
+
         display_map(user, cols, rows, map, map_rooms, 0);
         k = move_char(input, user, cols, rows, map, map_rooms, 0);
 
-        if (k == 2 || k==0)
+        if (k == 2 || k == 0)
             break;
+
     } while ((input = getch()) != 'q'); // q means quit
     for (int i = 0; i < rows; i++)
     {
@@ -1573,6 +1581,7 @@ void new_game(Gamer *g)
     user.score = 0;
     user.level = 1;
     user.health = 10;
+    user.num_foods = 0;
     room all_floor_rooms[4][6];
     player_initial_pos = 0;
     control_play_in_a_floor(rows - 6, cols - 6, 0,
