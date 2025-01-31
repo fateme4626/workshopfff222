@@ -920,19 +920,19 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
     {
         for(int x= map_rooms[i].y ; x <= map_rooms[i].y+ map_rooms[i].size_y ; x++)
         {
-            for(int y= map_rooms[i].x ; y<= map_rooms[i].y  +map_rooms[i].size_y ; y++)
+            for(int y= map_rooms[i].x ; y<= map_rooms[i].x  +map_rooms[i].size_x ; y++)
             {
                 if(i == num_of_treasure_room && i!=0)
                 {
-                    attron(COLOR_PAIR(5));
+                    attron(COLOR_PAIR(5) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
                     attroff(COLOR_PAIR(5));
 
                 }
                 else {
-                    attron(COLOR_PAIR(2));
+                    attron(COLOR_PAIR(4) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
-                    attroff(COLOR_PAIR(2));
+                    attroff(COLOR_PAIR(4));
 
                 }
             }
