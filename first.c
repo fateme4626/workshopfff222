@@ -40,6 +40,7 @@ typedef struct first
 typedef struct
 {
     char name[80];
+    int difficulty; //1:easy  2: medium  3:hard
     int score;
     int gold;
     pair position;
@@ -47,10 +48,20 @@ typedef struct
     int health;
 
     int num_foods;
+
     food **foods;
+
+    int num_of_eaten_food;
     time_t start_time;
     time_t exprience;
     int hunger_level;
+
+    int num_weopen;
+    int num_mace;
+    int num_dagger;
+    int num_magic_wand;
+    int num_normal_arrow;
+    int num_sword;
 
     // type of food
 } player;
@@ -911,14 +922,14 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
             for (int y = map_rooms[i].x; y <= map_rooms[i].x + map_rooms[i].size_x; y++)
             {
                 if (i == num_of_treasure_room && i != 0 &&
-                    map[x][y] != '$' && map[x][y] != 'F')
+                    (map[x][y] == '|' || map[x][y] == '-' || map[x][y] == '.' || map[x][y] == '+'))
                 {
                     attron(COLOR_PAIR(5) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
                     attroff(COLOR_PAIR(5));
                 }
 
-                else if (map[x][y] != '$' && map[x][y] != 'F')
+                else if (map[x][y] == '.' || map[x][y] == '-' || map[x][y] == '|' || map[x][y] == '+')
                 {
                     attron(COLOR_PAIR(4) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
@@ -944,6 +955,15 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
                             attroff(COLOR_PAIR(3));
                             break;
                         }
+                        case 'M':
+                        case 'D':
+                        case 'W':
+                        case 'A':
+                        case 'S':
+                            attron(COLOR_PAIR(1) | A_BOLD);
+                            mvprintw(x, y, "%c", map[x][y]);
+                            attroff(COLOR_PAIR(1));
+                            break;
                         }
                     }
                     else
@@ -975,7 +995,7 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
             }
         }
     }
-    mvaddch(user->position.y, user->position.x, 'H');
+    // mvaddch(user->position.y, user->position.x, 'H');
     time_t current_time;
     time(&current_time);
     user->exprience = (int)difftime(current_time, user->start_time);
@@ -985,9 +1005,26 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
     mvprintw(LINES - 1, 15, "Gold: %d %lc", user->gold, L'💰');
     mvprintw(LINES - 1, 30, "score : %d %lc", user->score, L'⭐');
     int static il = 1;
-    user->hunger_level = user->exprience / 2; // har 30 second hunger level+=1
+     // har 30 second hunger level+=1
+    int zarib_henger_and_health;
+    int zarib_time_hunger;
+    switch(user->difficulty){
+        case 1:
+        zarib_henger_and_health= 5;
+        zarib_time_hunger=40;// second
+        break;
+        case 2:
+        zarib_henger_and_health= 4;
+        zarib_time_hunger=30;
+        break;
+        case 3:
+        zarib_henger_and_health= 3;
+        zarib_time_hunger=20;
+        break;
 
-    user->health -= user->hunger_level / (il * 3);
+    }
+    user->hunger_level = user->exprience / zarib_time_hunger;
+    user->health -= user->hunger_level / (il * zarib_henger_and_health);
     if (user->hunger_level / (il * 3) != 0)
     {
         il++;
@@ -1046,6 +1083,65 @@ void food_placed(room map_rooms[6], int rows, int cols, char map[rows][cols])
             map[y][x] = 'F';
         }
     }
+}
+
+void placed_weopen(room map_rooms[6], int rows, int cols, char map[rows][cols])
+{
+    // except room 4 , 3 all rooms have 4 golds
+
+    int i;
+
+    i = rand() % 6;
+
+    int x, y;
+    do
+    {
+        x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+        y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+    } while (map[y][x] != '.');
+    map_rooms[i].num_food++;
+    map[y][x] = 'M'; // mace
+
+    i = rand() % 6;
+
+    do
+    {
+        x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+        y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+    } while (map[y][x] != '.');
+    map_rooms[i].num_food++;
+    map[y][x] = 'D'; // dagger
+
+    i = rand() % 6;
+
+    do
+    {
+        x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+        y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+    } while (map[y][x] != '.');
+    map_rooms[i].num_food++;
+    map[y][x] = 'W'; // magic wand
+
+    i = rand() % 6;
+
+    do
+    {
+        x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+        y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+    } while (map[y][x] != '.');
+    map_rooms[i].num_food++;
+    map[y][x] = 'A'; // normal arrow
+
+    i = rand() % 6;
+
+    do
+    {
+        x = rand() % map_rooms[i].size_x + map_rooms[i].x;
+        y = rand() % map_rooms[i].size_y + map_rooms[i].y;
+    } while (map[y][x] != '.');
+    map_rooms[i].num_food++;
+    map[y][x] = 'S'; // sword
+    return;
 }
 
 #define min_size_of_height_and_weight 8
@@ -1377,6 +1473,7 @@ int draw_map_for_first_floor(int rows, player *user, int cols, char map[rows][co
 
 void show_foods(player user)
 {
+    int static u = 1;
     refresh();
     WINDOW *food_menu = newwin(LINES - 20, COLS / 2, (LINES) / 6, (COLS) / 4);
     init_pair(6, COLOR_CYAN, COLOR_BLACK);
@@ -1384,22 +1481,146 @@ void show_foods(player user)
     box(food_menu, 0, 0);
     wattroff(food_menu, COLOR_PAIR(6));
     wattron(food_menu, COLOR_PAIR(4) | A_BOLD);
-    mvwprintw(food_menu, 2, 34, "%s", "List of Foods");
-    mvwprintw(food_menu, 4, 1, "Hunger_level");
+    mvwprintw(food_menu, 2, 40, "%s", "List of Foods");
+    mvwprintw(food_menu, 4, 1, "Hunger level:");
+
     for (int i = 0; i < user.hunger_level; i++)
     {
-
-        mvwprintw(food_menu, 4, 10 + i + 5, "%lc", L'🟥');
+        mvwprintw(food_menu, 4, 15 + i, "%lc", L'🟥');
     }
-    wattroff(food_menu, COLOR_PAIR(4));
 
-    int ch = getch();
-    if (ch == 'm')
+    char *menu[] = {"Common food", "Special food", "Back"};
+    int choice = 0;
+
+    while (1)
     {
-        delwin(food_menu);
+        for (int i = 0; i < 3; ++i)
+        {
+            if (i == choice)
+                wattron(food_menu, A_REVERSE);
+            if (i == 0)
+                mvwprintw(food_menu, 16 + 2 * i, 32, "%s : %d", menu[i], user.num_foods);
+            else
+                mvwprintw(food_menu, 16 + 2 * i, 32, "%s", menu[i]);
+
+            if (i == choice)
+                wattroff(food_menu, A_REVERSE);
+        }
+
+        wrefresh(food_menu);
+        wattroff(food_menu, COLOR_PAIR(4));
+
+        int ch = getch();
+        switch (ch)
+        {
+        case KEY_UP:
+            choice = (choice == 0) ? 2 : choice - 1;
+            break;
+        case KEY_DOWN:
+            choice = (choice == 2) ? 0 : choice + 1;
+            break;
+        case 10: // Enter key
+            if (choice == 0 && user.num_foods > 0)
+            {
+                user.num_foods--;
+                user.num_of_eaten_food++;
+                if (user.health < 10)
+                {
+                    user.health += user.num_of_eaten_food / (u * 3);
+                    if (user.num_of_eaten_food / (u * 3) != 0)
+                    {
+                        u++;
+                    }
+                }
+            }
+            else if (choice == 1)
+            {
+                // عملکرد برای غذای ویژه
+            }
+            else if (choice == 2)
+            {
+                delwin(food_menu);
+                refresh();
+                return;
+            }
+            break;
+        }
     }
 
     wrefresh(food_menu);
+    return;
+}
+
+int default_weopen = 0;
+
+void show_weapons(player user)
+{
+    refresh();
+    WINDOW *weopen_menu = newwin(LINES - 20, COLS / 2, (LINES) / 6, (COLS) / 4);
+    init_pair(6, COLOR_CYAN, COLOR_BLACK);
+    wattron(weopen_menu, COLOR_PAIR(6));
+    box(weopen_menu, 0, 0);
+    wattroff(weopen_menu, COLOR_PAIR(6));
+    wattron(weopen_menu, COLOR_PAIR(4) | A_BOLD);
+    mvwprintw(weopen_menu, 2, 32, "%s", "List of Weopens");
+    wattroff(weopen_menu, COLOR_PAIR(4));
+
+    char *menu[] = {"Mace", "Dagger", "Magic Wand", "Normal Arrow", "Sword", "Back"};
+    int choice = 0;
+
+    while (1)
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            if (i == choice)
+                wattron(weopen_menu, A_REVERSE);
+            if (i == 0)
+                mvwprintw(weopen_menu, 8 + 2 * i, 32, "%s : %d  ", menu[i], user.num_mace);
+            else if (i == 1)
+                mvwprintw(weopen_menu, 8 + 2 * i, 32, "%s : %d  %lc  ", menu[i], user.num_dagger, L'🗡');
+            else if (i == 2)
+                mvwprintw(weopen_menu, 8 + 2 * i, 32, "%s : %d  %lc  ", menu[i], user.num_magic_wand, L'🪄');
+            else if (i == 3)
+                mvwprintw(weopen_menu, 8 + 2 * i, 32, "%s : %d  %lc  ", menu[i], user.num_normal_arrow, L'🏹');
+            else if (i == 4)
+                mvwprintw(weopen_menu, 8 + 2 * i, 32, "%s : %d  %lc  ", menu[i], user.num_sword, L'⚔');
+            if (i == 5)
+                mvwprintw(weopen_menu, 8 + 2 * i, 32, "%s", menu[i]);
+
+            if (i == choice)
+                wattroff(weopen_menu, A_REVERSE);
+        }
+
+        wrefresh(weopen_menu);
+
+        int ch = getch();
+        switch (ch)
+        {
+        case KEY_UP:
+            choice = (choice == 0) ? 2 : choice - 1;
+            break;
+        case KEY_DOWN:
+            choice = (choice == 5) ? 0 : choice + 1;
+            break;
+        case 10: // Enter key
+            if (choice == 0 && user.num_foods > 0)
+            {
+            }
+            else if (choice == 1)
+            {
+                // عملکرد برای غذای ویژه
+            }
+            else if (choice == 5)
+            {
+                delwin(weopen_menu);
+                refresh();
+                return;
+            }
+            break;
+        }
+    }
+
+    wrefresh(weopen_menu);
     return;
 }
 int move_char(int input, player *user, int cols, int rows, char map[rows][cols], room map_rooms[6], int n)
@@ -1429,7 +1650,15 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         initial_x--;
     else if (input == 'e')
     {
+        // nodelay(stdscr, FALSE);
         show_foods(*user);
+        display_map(user, cols, rows, map, map_rooms, n);
+    }
+
+    else if (input == 'i')
+    {
+        show_weapons(*user);
+        display_map(user, cols, rows, map, map_rooms, n);
     }
 
     int current_room = check_position_of_object(initial_y, initial_x, rows, cols, map, map_rooms);
@@ -1467,22 +1696,11 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         return 2;
 
     case '$':
-        user->gold++;
-        user->score += 5; // gold= 5*score
-        user->position.y = initial_y;
-        user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
-        map[initial_y][initial_x] = '.';
-        display_map(user, cols, rows, map, map_rooms, n);
-        mvaddch(user->position.y, user->position.x, 'H');
-        map_rooms[current_room].number_of_gold--;
-        refresh();
-        return 1;
-
-    case 'F': // food
-        if (user->num_foods <= 4)
+        int c = getch();
+        if (c == 10)
         {
-            user->num_foods++;
+            user->gold++;
+            user->score += 5; // gold= 5*score
             user->position.y = initial_y;
             user->position.x = initial_x;
             mvaddch(user->position.y, user->position.x, 'H');
@@ -1497,29 +1715,154 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
             user->position.y = initial_y;
             user->position.x = initial_x;
             mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
+        }
+        return 1;
+
+    case 'F': // food
+        c = getch();
+        if (c == 10)
+        {
+            if (user->num_foods <= 4)
+            {
+                user->num_foods++;
+                user->position.y = initial_y;
+                user->position.x = initial_x;
+                mvaddch(user->position.y, user->position.x, 'H');
+                map[initial_y][initial_x] = '.';
+                display_map(user, cols, rows, map, map_rooms, n);
+                mvaddch(user->position.y, user->position.x, 'H');
+                map_rooms[current_room].num_food--;
+                refresh();
+            }
+            else
+            {
+                user->position.y = initial_y;
+                user->position.x = initial_x;
+                mvaddch(user->position.y, user->position.x, 'H');
+            }
+        }
+        else
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
         }
 
+        return 1;
+
+    case 'M':
+        c = getch();
+        if (c == 10)
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            map[initial_y][initial_x] = '.';
+            display_map(user, cols, rows, map, map_rooms, n);
+            mvaddch(user->position.y, user->position.x, 'H');
+            refresh();
+            user->num_mace++;
+        }
+        else
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
+        }
+        return 1;
+    case 'D':
+        c = getch();
+        if (c == 10)
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            map[initial_y][initial_x] = '.';
+            display_map(user, cols, rows, map, map_rooms, n);
+            mvaddch(user->position.y, user->position.x, 'H');
+            refresh();
+            user->num_dagger++;
+        }
+        else
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
+        }
+        return 1;
+
+    case 'W':
+        c = getch();
+        if (c == 10)
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            map[initial_y][initial_x] = '.';
+            display_map(user, cols, rows, map, map_rooms, n);
+            mvaddch(user->position.y, user->position.x, 'H');
+            refresh();
+            user->num_magic_wand++;
+        }
+        else
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
+        }
+        return 1;
+
+    case 'A':
+        c = getch();
+        if (c == 10)
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            map[initial_y][initial_x] = '.';
+            display_map(user, cols, rows, map, map_rooms, n);
+            mvaddch(user->position.y, user->position.x, 'H');
+            refresh();
+            user->num_normal_arrow++;
+        }
+        else
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
+        }
+        return 1;
+
+    case 'S':
+        c = getch();
+        if (c == 10)
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            map[initial_y][initial_x] = '.';
+            display_map(user, cols, rows, map, map_rooms, n);
+            mvaddch(user->position.y, user->position.x, 'H');
+            refresh();
+            user->num_sword++;
+        }
+        else
+        {
+            user->position.y = initial_y;
+            user->position.x = initial_x;
+            mvaddch(user->position.y, user->position.x, 'H');
+            move_char(c, user, cols, rows, map, map_rooms, n);
+        }
         return 1;
     }
 }
 
-void lost_and_end()
-{
-    refresh();
-    WINDOW *lose_message = newwin(LINES / 2, COLS / 2, (LINES) / 6, (COLS) / 4);
-    init_pair(6, COLOR_CYAN, COLOR_BLACK);
-    wattron(lose_message, COLOR_PAIR(6));
-    mvwprintw(lose_message, 2, 34, "%s%s%s%s%s%s", "                        _           _   \n",
-              " _   _  ___  _   _     | | ___  ___| |_ \n",
-              "| | | |/ _ \\| | | |    | |/ _ \\/ __| __|\n",
-              "| |_| | (_) | |_| |    | | (_) \\__ \\ |_ \n",
-              " \\__, |\\___/ \\__,_|    |_|\\___/|___/\\__|\n",
-              " |___/                                  ");
-
-    timeout(100000);
-    wattroff(lose_message, COLOR_PAIR(6));
-    wattron(lose_message, COLOR_PAIR(4) | A_BOLD);
-}
 void control_play_in_a_floor(int rows, int cols, int floor,
                              char all_floor[4][rows][cols],
                              room all_floor_rooms[4][6], player *user)
@@ -1574,8 +1917,9 @@ void control_play_in_a_floor(int rows, int cols, int floor,
     cols--;
     gold_placed(map_rooms, rows, cols, map);
     food_placed(map_rooms, rows, cols, map);
+    placed_weopen(map_rooms, rows, cols, map);
     int k;
-    nodelay(stdscr, TRUE);
+    // nodelay(stdscr, TRUE);
     do
     {
         int current_room = check_position_of_object(user->position.y, user->position.x,
@@ -1583,29 +1927,30 @@ void control_play_in_a_floor(int rows, int cols, int floor,
         if (current_room != 11)
             map_rooms[current_room].visited = 1;
         flushinp();
-        // برای سطح گرسنگی 3 ، یکبار سلامت کاهش می‌یابد
         if (user->health == 0)
         {
-            // فراخوانی تابع lost_and_end برای خاتمه بازی
-            // lost_and_end();
+            //  nodelay(stdscr, FALSE);
 
             clear();
-            mvprintw((LINES - 6) / 2, (COLS - 16) / 2,
+            attron(COLOR_PAIR(1) | A_BOLD);
+            mvprintw((LINES - 6) / 2, (COLS - 42) / 2,
                      "                         _           _   ");
-            mvprintw((LINES - 6) / 2 + 1, (COLS - 16) / 2,
+            mvprintw((LINES - 6) / 2 + 1, (COLS - 42) / 2,
                      "  _   _  ___  _   _     | | ___  ___| |_ ");
-            mvprintw((LINES - 6) / 2 + 2, (COLS - 16) / 2,
+            mvprintw((LINES - 6) / 2 + 2, (COLS - 42) / 2,
                      " | | | |/ _ \\| | | |    | |/ _ \\/ __| __|");
-            mvprintw((LINES - 6) / 2 + 3, (COLS - 16) / 2 ",
-                                                          " | |_| | (_) | |_| |    | | (_) \\__ \\ |_ ",
-                     "  \\__, |\\___/ \\__,_|    |_|\\___/|___/\\__|",
+            mvprintw((LINES - 6) / 2 + 3, (COLS - 42) / 2,
+                     " | |_| | (_) | |_| |    | | (_) \\__ \\ |_ ");
+            mvprintw((LINES - 6) / 2 + 4, (COLS - 42) / 2,
+                     "  \\__, |\\___/ \\__,_|    |_|\\___/|___/\\__|");
+            mvprintw((LINES - 6) / 2 + 5, (COLS - 42) / 2,
                      "  |___/                                  ");
+            attroff(COLOR_PAIR(1) | A_BOLD);
 
-            refresh();              // تازه‌سازی صفحه نمایش
-            nodelay(stdscr, FALSE); // تنظیم ورودی به حالت بلاکینگ
-            getch();                // انتظار برای ورودی کاربر
+            refresh();
+            getch();
 
-            break; // خاتمه حلقه
+            return;
         }
         display_map(user, cols, rows, map, map_rooms, 0);
         k = move_char(input, user, cols, rows, map, map_rooms, 0);
@@ -1613,7 +1958,7 @@ void control_play_in_a_floor(int rows, int cols, int floor,
         if (k == 2 || k == 0)
             break;
 
-        usleep(100000);
+        // usleep(100000);
 
     } while ((input = getch()) != 'q'); // q means quit
     for (int i = 0; i < rows; i++)
@@ -1635,6 +1980,7 @@ void control_play_in_a_floor(int rows, int cols, int floor,
     return;
 }
 
+
 void new_game(Gamer *g)
 {
     clear();
@@ -1645,13 +1991,31 @@ void new_game(Gamer *g)
     char all_floor[level][rows][cols];
     noecho();
     player user;
+    if(strcmp(g->difficulty, "easy"))
+    {
+        user.difficulty=1;
+    }
+    else if(strcmp(g->difficulty, "medium"))
+    user.difficulty=2;
+    else
+    user.difficulty=3;
+    // initilize player_info
+
     user.gold = 0;
     user.score = 0;
     user.level = 1;
     user.health = 10;
     user.num_foods = 0;
+    user.num_of_eaten_food = 0;
     user.hunger_level = 0;
     user.exprience = 0;
+    user.num_mace = 0;
+    user.num_dagger = 0;
+    user.num_magic_wand = 0;
+    user.num_normal_arrow = 0;
+    user.num_sword = 0;
+    user.num_weopen = 0;
+    //
     user.start_time = time(NULL);
     room all_floor_rooms[4][6];
     player_initial_pos = 0;
