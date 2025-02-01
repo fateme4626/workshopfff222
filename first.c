@@ -31,6 +31,12 @@ typedef struct
     char hero_color[10];
 } Gamer;
 
+typedef struct first
+{
+    pair pos;
+    int type;
+} food;
+
 typedef struct
 {
     char name[80];
@@ -39,7 +45,13 @@ typedef struct
     pair position;
     int level;
     int health;
+
     int num_foods;
+    food **foods;
+    time_t start_time;
+    time_t exprience;
+    int hunger_level;
+
     // type of food
 } player;
 
@@ -891,7 +903,6 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
 {
     clear();
     refresh();
-    int current_room = check_position_of_object(user->position.y, user->position.x, rows, cols, map, map_rooms);
     for (int i = 0; i < 6; i++)
     {
 
@@ -899,7 +910,8 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
         {
             for (int y = map_rooms[i].x; y <= map_rooms[i].x + map_rooms[i].size_x; y++)
             {
-                if (i == num_of_treasure_room && i != 0 && map[x][y] != '$' && map[x][y] != 'F')
+                if (i == num_of_treasure_room && i != 0 &&
+                    map[x][y] != '$' && map[x][y] != 'F')
                 {
                     attron(COLOR_PAIR(5) | A_BOLD);
                     mvaddch(x, y, map[x][y]);
@@ -916,17 +928,22 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
                 {
                     if (map_rooms[i].visited == 1)
                     {
-                        if (map[x][y] == '$')
+                        switch (map[x][y])
+                        {
+                        case '$':
                         {
                             attron(COLOR_PAIR(5) | A_BOLD);
                             mvaddch(x, y, map[x][y]);
                             attroff(COLOR_PAIR(5));
+                            break;
                         }
-                        if (map[x][y] == 'F')
+                        case 'F':
                         {
                             attron(COLOR_PAIR(3) | A_BOLD);
                             mvprintw(x, y, "%c", '*');
                             attroff(COLOR_PAIR(3));
+                            break;
+                        }
                         }
                     }
                     else
@@ -944,31 +961,38 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
     {
         for (int x = 2; x <= cols; x++)
         {
-
             if (map[y][x] == '#')
             {
                 attron(COLOR_PAIR(2));
                 mvaddch(y, x, map[y][x]);
                 attroff(COLOR_PAIR(2));
             }
-            else if (map[y][x] == '<')
+            if (map[y][x] == '<')
             {
                 attron(COLOR_PAIR(2));
-                mvaddch(y, x, map[y][x]);
-                attroff(COLOR_PAIR(2));
-            }
-            else if (map[y][x] == '&')
-            {
-                attron(COLOR_PAIR(2));
-                mvaddch(y, x, map[y][x]);
+                mvaddch(y, x, '<');
                 attroff(COLOR_PAIR(2));
             }
         }
     }
+    mvaddch(user->position.y, user->position.x, 'H');
+    time_t current_time;
+    time(&current_time);
+    user->exprience = (int)difftime(current_time, user->start_time);
+    refresh();
     attron(COLOR_PAIR(3));
     mvprintw(LINES - 1, 2, "level: %d", user->level);
     mvprintw(LINES - 1, 15, "Gold: %d %lc", user->gold, L'💰');
     mvprintw(LINES - 1, 30, "score : %d %lc", user->score, L'⭐');
+    int static il = 1;
+    user->hunger_level = user->exprience / 2; // har 30 second hunger level+=1
+
+    user->health -= user->hunger_level / (il * 3);
+    if (user->hunger_level / (il * 3) != 0)
+    {
+        il++;
+    }
+
     mvprintw(LINES - 1, 47, "Health :");
     for (int i = 1; i <= user->health; i++)
     {
@@ -1026,39 +1050,6 @@ void food_placed(room map_rooms[6], int rows, int cols, char map[rows][cols])
 
 #define min_size_of_height_and_weight 8
 #define max_size_of_height_and_weight 10
-
-/*void control_the_password_door(int input_password, room map_rooms[6], int rows, int cols,
-                               char map[rows][cols])
-{
-    if (input_password == password)
-    {
-        map_rooms[room_number_of_password_door].unlock = 1;
-        the_password_is_shown = 0;
-        attemps = 0;
-        password = 0;
-        for (int i = 2; i <= rows; i++)
-        {
-            for (int j = 0; j <= cols; j++)
-            {
-                if (map[i][j] == '&')
-                    map[i][j] == '.';
-            }
-        }
-        return;
-    }
-    else
-    {
-        attemps++;
-        if (attemps == 1)
-        {
-            attron(COLOR_PAIR(5));
-            mvprintw(2, COLS / 2 - 10, "The password is incorrect");
-            attroff(COLOR_PAIR(5));
-            getch();
-        }
-    }
-}
-*/
 
 int draw_map_for_other_floor(int rows, player *user,
                              int cols, char map[rows][cols], room map_rooms[6],
@@ -1384,6 +1375,33 @@ int draw_map_for_first_floor(int rows, player *user, int cols, char map[rows][co
     return 1;
 }
 
+void show_foods(player user)
+{
+    refresh();
+    WINDOW *food_menu = newwin(LINES - 20, COLS / 2, (LINES) / 6, (COLS) / 4);
+    init_pair(6, COLOR_CYAN, COLOR_BLACK);
+    wattron(food_menu, COLOR_PAIR(6));
+    box(food_menu, 0, 0);
+    wattroff(food_menu, COLOR_PAIR(6));
+    wattron(food_menu, COLOR_PAIR(4) | A_BOLD);
+    mvwprintw(food_menu, 2, 34, "%s", "List of Foods");
+    mvwprintw(food_menu, 4, 1, "Hunger_level");
+    for (int i = 0; i < user.hunger_level; i++)
+    {
+
+        mvwprintw(food_menu, 4, 10 + i + 5, "%lc", L'🟥');
+    }
+    wattroff(food_menu, COLOR_PAIR(4));
+
+    int ch = getch();
+    if (ch == 'm')
+    {
+        delwin(food_menu);
+    }
+
+    wrefresh(food_menu);
+    return;
+}
 int move_char(int input, player *user, int cols, int rows, char map[rows][cols], room map_rooms[6], int n)
 {
 
@@ -1409,6 +1427,11 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         initial_x++;
     else if (input == KEY_LEFT)
         initial_x--;
+    else if (input == 'e')
+    {
+        show_foods(*user);
+    }
+
     int current_room = check_position_of_object(initial_y, initial_x, rows, cols, map, map_rooms);
     switch (map[initial_y][initial_x])
     {
@@ -1456,7 +1479,7 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         refresh();
         return 1;
 
-    case 'F': //food
+    case 'F': // food
         if (user->num_foods <= 4)
         {
             user->num_foods++;
@@ -1480,6 +1503,23 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
     }
 }
 
+void lost_and_end()
+{
+    refresh();
+    WINDOW *lose_message = newwin(LINES / 2, COLS / 2, (LINES) / 6, (COLS) / 4);
+    init_pair(6, COLOR_CYAN, COLOR_BLACK);
+    wattron(lose_message, COLOR_PAIR(6));
+    mvwprintw(lose_message, 2, 34, "%s%s%s%s%s%s", "                        _           _   \n",
+              " _   _  ___  _   _     | | ___  ___| |_ \n",
+              "| | | |/ _ \\| | | |    | |/ _ \\/ __| __|\n",
+              "| |_| | (_) | |_| |    | | (_) \\__ \\ |_ \n",
+              " \\__, |\\___/ \\__,_|    |_|\\___/|___/\\__|\n",
+              " |___/                                  ");
+
+    timeout(100000);
+    wattroff(lose_message, COLOR_PAIR(6));
+    wattron(lose_message, COLOR_PAIR(4) | A_BOLD);
+}
 void control_play_in_a_floor(int rows, int cols, int floor,
                              char all_floor[4][rows][cols],
                              room all_floor_rooms[4][6], player *user)
@@ -1535,18 +1575,45 @@ void control_play_in_a_floor(int rows, int cols, int floor,
     gold_placed(map_rooms, rows, cols, map);
     food_placed(map_rooms, rows, cols, map);
     int k;
+    nodelay(stdscr, TRUE);
     do
     {
         int current_room = check_position_of_object(user->position.y, user->position.x,
                                                     rows, cols, map, map_rooms);
         if (current_room != 11)
             map_rooms[current_room].visited = 1;
+        flushinp();
+        // برای سطح گرسنگی 3 ، یکبار سلامت کاهش می‌یابد
+        if (user->health == 0)
+        {
+            // فراخوانی تابع lost_and_end برای خاتمه بازی
+            // lost_and_end();
 
+            clear();
+            mvprintw((LINES - 6) / 2, (COLS - 16) / 2,
+                     "                         _           _   ");
+            mvprintw((LINES - 6) / 2 + 1, (COLS - 16) / 2,
+                     "  _   _  ___  _   _     | | ___  ___| |_ ");
+            mvprintw((LINES - 6) / 2 + 2, (COLS - 16) / 2,
+                     " | | | |/ _ \\| | | |    | |/ _ \\/ __| __|");
+            mvprintw((LINES - 6) / 2 + 3, (COLS - 16) / 2 ",
+                                                          " | |_| | (_) | |_| |    | | (_) \\__ \\ |_ ",
+                     "  \\__, |\\___/ \\__,_|    |_|\\___/|___/\\__|",
+                     "  |___/                                  ");
+
+            refresh();              // تازه‌سازی صفحه نمایش
+            nodelay(stdscr, FALSE); // تنظیم ورودی به حالت بلاکینگ
+            getch();                // انتظار برای ورودی کاربر
+
+            break; // خاتمه حلقه
+        }
         display_map(user, cols, rows, map, map_rooms, 0);
         k = move_char(input, user, cols, rows, map, map_rooms, 0);
 
         if (k == 2 || k == 0)
             break;
+
+        usleep(100000);
 
     } while ((input = getch()) != 'q'); // q means quit
     for (int i = 0; i < rows; i++)
@@ -1576,15 +1643,19 @@ void new_game(Gamer *g)
     getmaxyx(stdscr, rows, cols);
     int level = 4;
     char all_floor[level][rows][cols];
+    noecho();
     player user;
     user.gold = 0;
     user.score = 0;
     user.level = 1;
     user.health = 10;
     user.num_foods = 0;
+    user.hunger_level = 0;
+    user.exprience = 0;
+    user.start_time = time(NULL);
     room all_floor_rooms[4][6];
     player_initial_pos = 0;
-    control_play_in_a_floor(rows - 6, cols - 6, 0,
+    control_play_in_a_floor(rows - 3, cols - 3, 0,
                             all_floor, all_floor_rooms, &user);
 
     refresh();
