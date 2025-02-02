@@ -1,4 +1,0 @@
-name : kkk
-email : sakj@kjd.skj
-password : 6VVu6DUztxF
-security_word : ershad

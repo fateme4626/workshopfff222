@@ -1915,8 +1915,7 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
     }
 }
 
-
-void save_player_info(Gamer* g, player user)
+void save_player_info(Gamer *g, player user)
 {
     char temp2[200];
     snprintf(temp2, sizeof(temp2), "./%s/%s.game.info.txt", g->name, g->name);
@@ -1926,12 +1925,9 @@ void save_player_info(Gamer* g, player user)
             user.level, user.health, user.num_foods, user.num_of_eaten_food, user.exprience, user.hunger_level,
             user.num_weopen, user.num_mace, user.num_dagger, user.num_magic_wand, user.num_normal_arrow, user.num_sword,
             user.start_time);
-    
+
     fclose(file2);
 }
-
-
-
 
 void control_play_in_a_floor(int rows, int cols, int floor,
                              room all_floor_rooms[6],
@@ -2048,11 +2044,9 @@ void control_play_in_a_floor(int rows, int cols, int floor,
 
     } while ((input = getch()) != 'q'); // q means quit
 
-    
-
     if (input == 'q')
     {
-        save_player_info(g,*user);
+        save_player_info(g, *user);
     }
 
     if (k == 2)
@@ -2120,65 +2114,35 @@ void new_game(Gamer *g)
     refresh();
 }
 
-void load_player_info(Gamer* g, player *user) {
+void load_player_info(Gamer *g, player *user)
+{
     char temp2[200];
     snprintf(temp2, sizeof(temp2), "./%s/%s.game.info.txt", g->name, g->name);
     FILE *file2 = fopen(temp2, "r");
-    if (file2 == NULL) {
-        perror("Error opening file for reading player");
-        exit(1);
-    }
-    if (fscanf(file2, "%49s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %ld\n", 
-            user->name, 
-            &user->difficulty, 
-            &user->color, 
-            &user->score, 
-            &user->gold, 
-            &user->position.y, 
-            &user->position.x, 
-            &user->level, 
-            &user->health, 
-            &user->num_foods, 
-            &user->num_of_eaten_food, 
-            &user->exprience, 
-            &user->hunger_level, 
-            &user->num_weopen, 
-            &user->num_mace, 
-            &user->num_dagger, 
-            &user->num_magic_wand, 
-            &user->num_normal_arrow, 
-            &user->num_sword, 
-            &user->start_time) != 20) {
-        printf("Error reading player data.\n");
-    }
+
+    fscanf(file2, "%49s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %ld\n",
+           user->name,
+           &user->difficulty,
+           &user->color,
+           &user->score,
+           &user->gold,
+           &user->position.y,
+           &user->position.x,
+           &user->level,
+           &user->health,
+           &user->num_foods,
+           &user->num_of_eaten_food,
+           &user->exprience,
+           &user->hunger_level,
+           &user->num_weopen,
+           &user->num_mace,
+           &user->num_dagger,
+           &user->num_magic_wand,
+           &user->num_normal_arrow,
+           &user->num_sword,
+           &user->start_time);
     fclose(file2);
 }
-
-
-void print_player_info(Gamer* g, player user) {
-    printw("%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %ld\n",
-            user.name, 
-            user.difficulty, 
-            user.color, 
-            user.score, 
-            user.gold, 
-            user.position.y, 
-            user.position.x, 
-            user.level, 
-            user.health, 
-            user.num_foods, 
-            user.num_of_eaten_food, 
-            user.exprience, 
-            user.hunger_level, 
-            user.num_weopen, 
-            user.num_mace, 
-            user.num_dagger, 
-            user.num_magic_wand, 
-            user.num_normal_arrow, 
-            user.num_sword, 
-            user.start_time);
-}
-
 
 void continue_game(Gamer *g, const char *filename)
 {
@@ -2189,8 +2153,12 @@ void continue_game(Gamer *g, const char *filename)
     player user;
     memset(&user, 0, sizeof(player));
     load_player_info(g, &user);
-    print_player_info(g, user);
-    
+    room all_floor_rooms[6];
+    player_initial_pos = 0;
+    control_play_in_a_floor(rows - 3, cols - 3, user.level-1,
+                            all_floor_rooms, &user, g);
+
+    refresh();
     getch();
 
     //  resume_the_level(g, user, rows - 1, cols - 1, map, user.level, 2);

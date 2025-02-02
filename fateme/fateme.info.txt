@@ -1,4 +1,0 @@
-name : fateme
-email : behzadi@gmail.x
-password :  12334ksjjsXX#
-security_word : farz4
