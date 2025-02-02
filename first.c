@@ -40,7 +40,8 @@ typedef struct first
 typedef struct
 {
     char name[80];
-    int difficulty; //1:easy  2: medium  3:hard
+    int difficulty; // 1:easy  2: medium  3:hard
+    int color;
     int score;
     int gold;
     pair position;
@@ -49,11 +50,9 @@ typedef struct
 
     int num_foods;
 
-    food **foods;
-
     int num_of_eaten_food;
     time_t start_time;
-    time_t exprience;
+    int exprience;
     int hunger_level;
 
     int num_weopen;
@@ -81,11 +80,7 @@ typedef struct
 
     int number_of_gold;
 
-    pair food[4];
     int num_food;
-    int num_magic_food;
-    int fased_food;
-    int ala_food;
 
 } room;
 
@@ -101,12 +96,16 @@ void game_menu(Gamer *g, const char *filename);
 void sort_scores(const char *filename, Gamer *g);
 void show_scores(player *scores, int i, Gamer *g);
 void new_game(Gamer *g);
+
 int dfs_visit(char **map, char **mark, int x, int y, pair **parent, pair finish, int, int);
 void initialize(char ***mark, pair ***parent);
 void draw_path(pair start, pair current, pair **parent, char **map);
 void setting(Gamer *g);
 void difficulty(Gamer *g);
 void hero_setting(Gamer *g);
+void resume_the_level(Gamer *g, player user, int rows, int cols, char map[rows][cols],
+                      int level, int new1_floor_or_old2);
+void continue_game(Gamer *g, const char *filename);
 
 int main()
 {
@@ -438,6 +437,7 @@ int login(Gamer *g)
         }
     }
 }
+
 void login_as_guest(Gamer *g)
 {
     clear();
@@ -447,8 +447,12 @@ void login_as_guest(Gamer *g)
     clear();
     draw_border();
     mvprintw((LINES - 2) / 2 + 1, (COLS - strlen("press a key to start")) / 2, "press a key to start");
+
     getch();
+    strcpy(g->difficulty, "MEDIUM"); // default medium for guests
+    strcpy(g->hero_color, "GREEN");
 }
+
 char *random_pass()
 {
     static char pass[12];
@@ -522,7 +526,7 @@ void game_menu(Gamer *g, const char *filename)
             }
             else if (choice == 1)
             {
-                // continue_game(g);
+                continue_game(g, filename);
                 break;
             }
             else if (choice == 2)
@@ -538,10 +542,6 @@ void game_menu(Gamer *g, const char *filename)
 
     refresh();
     return;
-}
-
-void continue_game()
-{
 }
 
 void score_table()
@@ -1005,23 +1005,23 @@ void display_map(player *user, int cols, int rows, char map[rows][cols], room ma
     mvprintw(LINES - 1, 15, "Gold: %d %lc", user->gold, L'💰');
     mvprintw(LINES - 1, 30, "score : %d %lc", user->score, L'⭐');
     int static il = 1;
-     // har 30 second hunger level+=1
+    // har 30 second hunger level+=1
     int zarib_henger_and_health;
     int zarib_time_hunger;
-    switch(user->difficulty){
-        case 1:
-        zarib_henger_and_health= 5;
-        zarib_time_hunger=40;// second
+    switch (user->difficulty)
+    {
+    case 1:
+        zarib_henger_and_health = 5;
+        zarib_time_hunger = 40; // second
         break;
-        case 2:
-        zarib_henger_and_health= 4;
-        zarib_time_hunger=30;
+    case 2:
+        zarib_henger_and_health = 4;
+        zarib_time_hunger = 30;
         break;
-        case 3:
-        zarib_henger_and_health= 3;
-        zarib_time_hunger=20;
+    case 3:
+        zarib_henger_and_health = 3;
+        zarib_time_hunger = 20;
         break;
-
     }
     user->hunger_level = user->exprience / zarib_time_hunger;
     user->health -= user->hunger_level / (il * zarib_henger_and_health);
@@ -1149,7 +1149,7 @@ void placed_weopen(room map_rooms[6], int rows, int cols, char map[rows][cols])
 
 int draw_map_for_other_floor(int rows, player *user,
                              int cols, char map[rows][cols], room map_rooms[6],
-                             int floor, char all_floor_room[4][rows][cols])
+                             int floor)
 {
 
     srand(time(NULL));
@@ -1326,7 +1326,7 @@ int draw_map_for_other_floor(int rows, player *user,
 }
 
 int draw_map_for_first_floor(int rows, player *user, int cols, char map[rows][cols], room map_rooms[6],
-                             int floor, char all_floor_room[4][rows][cols])
+                             int floor)
 {
 
     srand(time(NULL));
@@ -1667,19 +1667,25 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
     case '.':
         user->position.y = initial_y;
         user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
+        attron(COLOR_PAIR(user->color));
+        mvaddch(user->position.y, user->position.x, '@');
+        attroff(COLOR_PAIR(user->color));
         return 1;
 
     case '+':
         user->position.y = initial_y;
         user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
+        attron(COLOR_PAIR(user->color));
+        mvaddch(user->position.y, user->position.x, '@');
+        attroff(COLOR_PAIR(user->color));
         return 1;
 
     case '#':
         user->position.y = initial_y;
         user->position.x = initial_x;
-        mvaddch(user->position.y, user->position.x, 'H');
+        attron(COLOR_PAIR(user->color));
+        mvaddch(user->position.y, user->position.x, '@');
+        attroff(COLOR_PAIR(user->color));
         return 1;
 
     case '|':
@@ -1687,7 +1693,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
     case ' ':
         initial_x = user->position.x;
         initial_y = user->position.y;
-        mvaddch(user->position.y, user->position.x, 'H');
+        attron(COLOR_PAIR(user->color));
+        mvaddch(user->position.y, user->position.x, '@');
+        attroff(COLOR_PAIR(user->color));
         return 1;
 
     case '<':
@@ -1703,10 +1711,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
             user->score += 5; // gold= 5*score
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map[initial_y][initial_x] = '.';
             display_map(user, cols, rows, map, map_rooms, n);
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map_rooms[current_room].number_of_gold--;
             refresh();
         }
@@ -1714,7 +1726,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
         return 1;
@@ -1728,10 +1742,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
                 user->num_foods++;
                 user->position.y = initial_y;
                 user->position.x = initial_x;
-                mvaddch(user->position.y, user->position.x, 'H');
+                attron(COLOR_PAIR(user->color));
+                mvaddch(user->position.y, user->position.x, '@');
+                attroff(COLOR_PAIR(user->color));
                 map[initial_y][initial_x] = '.';
                 display_map(user, cols, rows, map, map_rooms, n);
-                mvaddch(user->position.y, user->position.x, 'H');
+                attron(COLOR_PAIR(user->color));
+                mvaddch(user->position.y, user->position.x, '@');
+                attroff(COLOR_PAIR(user->color));
                 map_rooms[current_room].num_food--;
                 refresh();
             }
@@ -1739,14 +1757,18 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
             {
                 user->position.y = initial_y;
                 user->position.x = initial_x;
+                attron(COLOR_PAIR(user->color));
                 mvaddch(user->position.y, user->position.x, 'H');
+                attroff(COLOR_PAIR(user->color));
             }
         }
         else
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
 
@@ -1758,10 +1780,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map[initial_y][initial_x] = '.';
             display_map(user, cols, rows, map, map_rooms, n);
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             refresh();
             user->num_mace++;
         }
@@ -1769,7 +1795,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
         return 1;
@@ -1779,10 +1807,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map[initial_y][initial_x] = '.';
             display_map(user, cols, rows, map, map_rooms, n);
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             refresh();
             user->num_dagger++;
         }
@@ -1790,7 +1822,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
         return 1;
@@ -1801,10 +1835,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map[initial_y][initial_x] = '.';
             display_map(user, cols, rows, map, map_rooms, n);
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             refresh();
             user->num_magic_wand++;
         }
@@ -1812,7 +1850,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
         return 1;
@@ -1823,10 +1863,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map[initial_y][initial_x] = '.';
             display_map(user, cols, rows, map, map_rooms, n);
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             refresh();
             user->num_normal_arrow++;
         }
@@ -1834,7 +1878,9 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
         return 1;
@@ -1845,10 +1891,14 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             map[initial_y][initial_x] = '.';
             display_map(user, cols, rows, map, map_rooms, n);
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             refresh();
             user->num_sword++;
         }
@@ -1856,16 +1906,36 @@ int move_char(int input, player *user, int cols, int rows, char map[rows][cols],
         {
             user->position.y = initial_y;
             user->position.x = initial_x;
-            mvaddch(user->position.y, user->position.x, 'H');
+            attron(COLOR_PAIR(user->color));
+            mvaddch(user->position.y, user->position.x, '@');
+            attroff(COLOR_PAIR(user->color));
             move_char(c, user, cols, rows, map, map_rooms, n);
         }
         return 1;
     }
 }
 
+
+void save_player_info(Gamer* g, player user)
+{
+    char temp2[200];
+    snprintf(temp2, sizeof(temp2), "./%s/%s.game.info.txt", g->name, g->name);
+    FILE *file2 = fopen(temp2, "w");
+    fprintf(file2, "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %ld\n",
+            user.name, user.difficulty, user.color, user.score, user.gold, user.position.y, user.position.x,
+            user.level, user.health, user.num_foods, user.num_of_eaten_food, user.exprience, user.hunger_level,
+            user.num_weopen, user.num_mace, user.num_dagger, user.num_magic_wand, user.num_normal_arrow, user.num_sword,
+            user.start_time);
+    
+    fclose(file2);
+}
+
+
+
+
 void control_play_in_a_floor(int rows, int cols, int floor,
-                             char all_floor[4][rows][cols],
-                             room all_floor_rooms[4][6], player *user)
+                             room all_floor_rooms[6],
+                             player *user, Gamer *g)
 
 {
     num_of_treasure_room = 0;
@@ -1875,6 +1945,7 @@ void control_play_in_a_floor(int rows, int cols, int floor,
     }
     char map[rows][cols];
     room map_rooms[6];
+    memset(map, 0, sizeof(map));
 
     for (int i = 0; i < 6; i++)
     {
@@ -1882,6 +1953,7 @@ void control_play_in_a_floor(int rows, int cols, int floor,
         map_rooms[i].number_of_gold = 0;
         map_rooms[i].visited = 0;
     }
+    int attemp = 0;
 
     if (floor == 0)
     {
@@ -1895,7 +1967,14 @@ void control_play_in_a_floor(int rows, int cols, int floor,
                 map_rooms[i].y = 0;
             }
             initilizing_map(rows - 1, cols - 1, map);
-        } while (!draw_map_for_first_floor(rows - 1, user, cols - 1, map, map_rooms, floor, all_floor));
+            attemp++;
+            if (attemp > 1000)
+            {
+                printw("trying failed, try again");
+                getch();
+                return;
+            }
+        } while (!draw_map_for_first_floor(rows - 1, user, cols - 1, map, map_rooms, floor));
     }
     else
     {
@@ -1909,7 +1988,14 @@ void control_play_in_a_floor(int rows, int cols, int floor,
                 map_rooms[i].y = 0;
             }
             initilizing_map(rows - 1, cols - 1, map);
-        } while (!draw_map_for_other_floor(rows - 1, user, cols - 1, map, map_rooms, floor, all_floor));
+            attemp++;
+            if (attemp > 1000)
+            {
+                printw("trying failed, try again");
+                getch();
+                return;
+            }
+        } while (!draw_map_for_other_floor(rows - 1, user, cols - 1, map, map_rooms, floor));
     }
     int input;
 
@@ -1961,25 +2047,22 @@ void control_play_in_a_floor(int rows, int cols, int floor,
         // usleep(100000);
 
     } while ((input = getch()) != 'q'); // q means quit
-    for (int i = 0; i < rows; i++)
-    {
-        strcpy(all_floor[floor][i], map[i]);
-    }
 
-    for (int i = 0; i < 6; i++)
+    
+
+    if (input == 'q')
     {
-        all_floor_rooms[floor][i] = map_rooms[i];
+        save_player_info(g,*user);
     }
 
     if (k == 2)
     {
         user->level++;
         control_play_in_a_floor(rows, cols, floor + 1,
-                                all_floor, all_floor_rooms, user);
+                                all_floor_rooms, user, g);
     }
     return;
 }
-
 
 void new_game(Gamer *g)
 {
@@ -1991,15 +2074,27 @@ void new_game(Gamer *g)
     char all_floor[level][rows][cols];
     noecho();
     player user;
-    if(strcmp(g->difficulty, "easy"))
+
+    memset(&user, 0, sizeof(player));
+    strcpy(user.name, g->name);
+    if (strcmp(g->difficulty, "EASY"))
     {
-        user.difficulty=1;
+        user.difficulty = 1;
     }
-    else if(strcmp(g->difficulty, "medium"))
-    user.difficulty=2;
+    else if (strcmp(g->difficulty, "MEDIUM"))
+        user.difficulty = 2;
     else
-    user.difficulty=3;
+        user.difficulty = 3;
     // initilize player_info
+
+    if (strcmp(g->hero_color, "RED") == 0)
+    {
+        user.color = 1;
+    }
+    else if (strcmp(g->hero_color, "BLUE") == 0)
+        user.color = 4;
+    else
+        user.color = 3;
 
     user.gold = 0;
     user.score = 0;
@@ -2017,14 +2112,86 @@ void new_game(Gamer *g)
     user.num_weopen = 0;
     //
     user.start_time = time(NULL);
-    room all_floor_rooms[4][6];
+    room all_floor_rooms[6];
     player_initial_pos = 0;
     control_play_in_a_floor(rows - 3, cols - 3, 0,
-                            all_floor, all_floor_rooms, &user);
+                            all_floor_rooms, &user, g);
 
     refresh();
-    getch();
 }
 
-/// rahro hhaye chasbide be divar
-// levek ta 5 mire
+void load_player_info(Gamer* g, player *user) {
+    char temp2[200];
+    snprintf(temp2, sizeof(temp2), "./%s/%s.game.info.txt", g->name, g->name);
+    FILE *file2 = fopen(temp2, "r");
+    if (file2 == NULL) {
+        perror("Error opening file for reading player");
+        exit(1);
+    }
+    if (fscanf(file2, "%49s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %ld\n", 
+            user->name, 
+            &user->difficulty, 
+            &user->color, 
+            &user->score, 
+            &user->gold, 
+            &user->position.y, 
+            &user->position.x, 
+            &user->level, 
+            &user->health, 
+            &user->num_foods, 
+            &user->num_of_eaten_food, 
+            &user->exprience, 
+            &user->hunger_level, 
+            &user->num_weopen, 
+            &user->num_mace, 
+            &user->num_dagger, 
+            &user->num_magic_wand, 
+            &user->num_normal_arrow, 
+            &user->num_sword, 
+            &user->start_time) != 20) {
+        printf("Error reading player data.\n");
+    }
+    fclose(file2);
+}
+
+
+void print_player_info(Gamer* g, player user) {
+    printw("%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %ld\n",
+            user.name, 
+            user.difficulty, 
+            user.color, 
+            user.score, 
+            user.gold, 
+            user.position.y, 
+            user.position.x, 
+            user.level, 
+            user.health, 
+            user.num_foods, 
+            user.num_of_eaten_food, 
+            user.exprience, 
+            user.hunger_level, 
+            user.num_weopen, 
+            user.num_mace, 
+            user.num_dagger, 
+            user.num_magic_wand, 
+            user.num_normal_arrow, 
+            user.num_sword, 
+            user.start_time);
+}
+
+
+void continue_game(Gamer *g, const char *filename)
+{
+    clear();
+    int rows, cols;
+    getmaxyx(stdscr, rows, cols);
+
+    player user;
+    memset(&user, 0, sizeof(player));
+    load_player_info(g, &user);
+    print_player_info(g, user);
+    
+    getch();
+
+    //  resume_the_level(g, user, rows - 1, cols - 1, map, user.level, 2);
+}
